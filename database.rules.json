@@ -1,0 +1,39 @@
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)",
+        ".validate": "$code.matches(/^[A-Z]{4}$/) && newData.hasChildren(['hostUid', 'status'])",
+
+        "status": {
+          ".write": "auth != null && data.val() === 'playing' && newData.val() === 'finished'",
+          ".validate": "newData.val() === 'lobby' || newData.val() === 'playing' || newData.val() === 'finished'"
+        },
+        "endReason": {
+          ".write": "auth != null && data.parent().child('status').val() === 'playing' && newData.val() === 'survivors'"
+        },
+        "sabotageDelay": {
+          ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 600"
+        },
+
+        "players": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.child('pseudo').isString() && newData.child('pseudo').val().length <= 24"
+          }
+        },
+
+        "tasks": {
+          "$taskId": {
+            ".write": "auth != null && data.exists() && newData.exists() && root.child('rooms').child($code).child('status').val() === 'playing'",
+            ".validate": "newData.hasChildren(['title', 'status']) && (newData.parent().parent().child('hostUid').val() === auth.uid || (newData.child('title').val() === data.child('title').val() && newData.child('location').val() === data.child('location').val()))",
+            "status": {
+              ".validate": "newData.val() === 'pending' || newData.val() === 'completed' || newData.val() === 'sabotaged'"
+            }
+          }
+        }
+      }
+    }
+  }
+}

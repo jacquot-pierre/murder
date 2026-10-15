@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#09090b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Murder Party">
+  <title>Murder Party</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔪</text></svg>">
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <style>
+    [hidden] { display: none !important; }
+    html, body { background: #09090b; overscroll-behavior-y: contain; }
+    body { -webkit-tap-highlight-color: transparent; }
+    button { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+    .safe-top { padding-top: env(safe-area-inset-top); }
+    .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 24px); }
+    @keyframes blink { 50% { opacity: .5; } }
+    .blink { animation: blink .9s ease-in-out infinite; }
+    @keyframes glow { 50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, .35); } }
+    .sabotaged { animation: glow 1.2s ease-in-out infinite; }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+<div class="mx-auto flex min-h-screen max-w-md flex-col">
+
+  <!-- ============ ÉCRAN : CONFIGURATION MANQUANTE ============ -->
+  <section id="screen-config" hidden class="safe-top flex-1 p-6">
+    <h1 class="mt-10 text-2xl font-black">⚙️ Configuration requise</h1>
+    <p class="mt-3 text-zinc-400">Renseigne l'objet <code class="text-zinc-200">firebaseConfig</code> en haut du script de <code class="text-zinc-200">index.html</code>, puis recharge la page. Voir le README pour les étapes.</p>
+    <p id="config-error" class="mt-4 text-sm text-red-400"></p>
+  </section>
+
+  <!-- ============ ÉCRAN : CHARGEMENT ============ -->
+  <section id="screen-loading" class="flex flex-1 items-center justify-center text-zinc-500">
+    <span id="loading-text">Connexion…</span>
+  </section>
+
+  <!-- ============ ÉCRAN : ACCUEIL ============ -->
+  <section id="screen-home" hidden class="safe-top safe-bottom flex flex-1 flex-col gap-6 px-5">
+    <header class="pt-10 text-center">
+      <div class="text-5xl">🔪</div>
+      <h1 class="mt-2 text-3xl font-black tracking-tight">Murder Party</h1>
+      <p class="mt-1 text-sm text-zinc-400">Faites les tâches. Ne faites confiance à personne.</p>
+    </header>
+
+    <label class="block">
+      <span class="text-sm text-zinc-400">Ton pseudo</span>
+      <input id="in-pseudo" maxlength="20" autocomplete="off" autocorrect="off" spellcheck="false"
+             class="mt-1 w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-base outline-none focus:border-zinc-500"
+             placeholder="Ex : Colonel Moutarde">
+    </label>
+
+    <div>
+      <span class="text-sm text-zinc-400">Ton rôle — secret, cache ton écran</span>
+      <div class="mt-1 grid grid-cols-2 gap-2">
+        <button type="button" data-role="SURVIVANT">🙂 Survivant</button>
+        <button type="button" data-role="TUEUR">🔪 Tueur</button>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3">
+      <button id="btn-create" type="button"
+              class="w-full rounded-xl bg-zinc-100 py-4 text-base font-black text-zinc-900 active:scale-[.98] disabled:opacity-50">
+        Créer une partie
+      </button>
+      <div class="flex items-center gap-3 text-xs uppercase tracking-widest text-zinc-600">
+        <div class="h-px flex-1 bg-zinc-800"></div>ou<div class="h-px flex-1 bg-zinc-800"></div>
+      </div>
+      <div class="flex gap-2">
+        <input id="in-code" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+               class="w-0 flex-1 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-center font-mono text-xl uppercase tracking-[0.4em] outline-none focus:border-zinc-500"
+               placeholder="CODE">
+        <button id="btn-join" type="button"
+                class="rounded-xl border border-zinc-700 bg-zinc-800 px-5 font-bold active:scale-[.98] disabled:opacity-50">
+          Rejoindre
+        </button>
+      </div>
+    </div>
+
+    <p id="home-error" class="min-h-[1.25rem] text-center text-sm text-red-400"></p>
+  </section>
+
+  <!-- ============ ÉCRAN : SALON / JEU ============ -->
+  <section id="screen-room" hidden class="flex flex-1 flex-col">
+    <header class="safe-top sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/95 backdrop-blur">
+      <div class="flex items-center gap-2 px-4 pt-3">
+        <span id="conn" class="h-2 w-2 rounded-full bg-zinc-600" title="Connexion"></span>
+        <span id="hdr-code" class="font-mono text-lg font-black tracking-[0.3em]">----</span>
+        <button id="hdr-role" type="button"
+                class="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-500">👁 Rôle</button>
+        <div class="ml-auto flex gap-1">
+          <button id="btn-host" type="button" hidden
+                  class="h-9 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-sm">⚙️ Hôte</button>
+          <button id="btn-leave" type="button"
+                  class="h-9 w-9 rounded-lg border border-zinc-800 bg-zinc-900 text-sm" aria-label="Quitter">✕</button>
+        </div>
+      </div>
+
+      <div id="progress-wrap" class="px-4 pb-3 pt-2">
+        <div class="mb-1 flex justify-between text-xs text-zinc-400">
+          <span>Progression collective</span><span id="progress-text" class="font-mono">0/0 · 0 %</span>
+        </div>
+        <div class="h-3 overflow-hidden rounded-full bg-zinc-800">
+          <div id="progress-bar" class="h-full rounded-full bg-emerald-500 transition-all duration-500" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div id="alert" hidden class="blink bg-red-600 px-3 py-2 text-center text-white">
+        <div class="font-black tracking-wide">⚠️ ALERTE : TÂCHE SABOTÉE</div>
+        <div id="alert-detail" class="text-xs font-semibold opacity-90"></div>
+      </div>
+    </header>
+
+    <main class="safe-bottom flex flex-1 flex-col gap-4 p-4">
+      <!-- Attente (joueurs non hôtes, salon d'attente) -->
+      <div id="view-wait" hidden class="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 text-center">
+        <div class="text-4xl">⏳</div>
+        <h2 class="mt-2 text-lg font-bold">En attente du lancement</h2>
+        <p class="mt-1 text-sm text-zinc-400">L'hôte prépare la partie. Garde cette page ouverte.</p>
+        <div class="mt-4 text-left text-sm text-zinc-400">Joueurs (<span id="wait-count">0</span>)</div>
+        <ul id="wait-players" class="mt-2 flex flex-wrap gap-1"></ul>
+      </div>
+
+      <!-- Panneau de l'hôte -->
+      <div id="host-panel" hidden class="flex flex-col gap-5 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold">Panneau de l'hôte</h2>
+          <span id="hp-status" class="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400"></span>
+        </div>
+
+        <div id="hp-invite" class="flex items-center gap-4 rounded-xl bg-zinc-800/60 p-3">
+          <div id="hp-qr" class="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-white p-1"></div>
+          <div class="min-w-0">
+            <div class="text-xs text-zinc-400">Code du salon</div>
+            <div id="hp-code" class="font-mono text-3xl font-black tracking-[0.3em]"></div>
+            <div class="mt-1 text-xs text-zinc-500">Les joueurs scannent le QR code ou saisissent le code.</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="mb-2 text-sm text-zinc-400">Délai d'activation du sabotage</div>
+          <div id="hp-delays" class="grid grid-cols-5 gap-1"></div>
+        </div>
+
+        <div>
+          <div class="mb-2 text-sm text-zinc-400">Tâches (<span id="hp-task-count">0</span>)</div>
+          <ul id="hp-tasks" class="flex flex-col gap-1"></ul>
+          <form id="hp-add" class="mt-2 grid grid-cols-[1fr_1fr_auto] gap-1">
+            <input id="hp-add-title" maxlength="40" placeholder="Tâche" autocomplete="off"
+                   class="min-w-0 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500">
+            <input id="hp-add-loc" maxlength="40" placeholder="Lieu" autocomplete="off"
+                   class="min-w-0 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500">
+            <button class="rounded-lg bg-zinc-100 px-4 font-black text-zinc-900" aria-label="Ajouter">+</button>
+          </form>
+        </div>
+
+        <div>
+          <div class="mb-2 text-sm text-zinc-400">Joueurs (<span id="hp-players-count">0</span>)</div>
+          <ul id="hp-players" class="flex flex-wrap gap-1"></ul>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <button id="hp-start" type="button" class="col-span-2 rounded-xl bg-emerald-500 py-3.5 font-black text-zinc-950 active:scale-[.98]">▶ Lancer la partie</button>
+          <button id="hp-end" type="button" class="rounded-xl border border-zinc-700 bg-zinc-800 py-3 font-bold">■ Terminer</button>
+          <button id="hp-reset" type="button" class="rounded-xl border border-zinc-700 bg-zinc-800 py-3 font-bold">↺ Réinitialiser</button>
+        </div>
+      </div>
+
+      <!-- Liste des tâches -->
+      <div id="task-list" class="flex select-none flex-col gap-3"></div>
+    </main>
+  </section>
+</div>
+
+<!-- Fin de partie -->
+<div id="end-overlay" hidden class="fixed inset-0 z-30 grid place-items-center bg-black/80 p-6 backdrop-blur-sm">
+  <div class="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-900 p-6 text-center">
+    <div id="end-icon" class="text-6xl"></div>
+    <h2 id="end-title" class="mt-3 text-2xl font-black"></h2>
+    <p id="end-text" class="mt-2 text-zinc-400"></p>
+    <div class="mt-6 grid gap-2">
+      <button id="end-restart" type="button" class="rounded-xl bg-zinc-100 py-3 font-black text-zinc-900">↺ Retour au salon d'attente</button>
+      <button id="end-close" type="button" class="rounded-xl border border-zinc-700 bg-zinc-800 py-3 font-bold">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notification discrète -->
+<div id="toast" hidden
+     class="fixed bottom-8 left-1/2 z-40 max-w-[90vw] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-900/95 px-4 py-2 text-center text-sm shadow-xl"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {
+  getDatabase, ref, get, set, update, remove, push, onValue, onDisconnect, runTransaction, serverTimestamp,
+} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+// =====================================================================
+//  CONFIGURATION FIREBASE — à remplacer par celle de ton projet
+//  (Console Firebase → Paramètres du projet → Vos applications → Web)
+// =====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCb_eH6zrckuLI4JRtujgfvZsgRE8mei-E",
+  authDomain: "murder-27165.firebaseapp.com",
+  databaseURL: "https://murder-27165-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "murder-27165",
+  storageBucket: "murder-27165.firebasestorage.app",
+  messagingSenderId: "1092397146187",
+  appId: "1:1092397146187:web:e422f481dc8d4afc242dce",
+};
+
+// =====================================================================
+//  RÉGLAGES DU JEU
+// =====================================================================
+const DELAYS = [15, 30, 45, 60, 90];
+const DEFAULT_DELAY = 30;
+const DEFAULT_TASKS = [
+  { title: 'Multiprise', location: 'Salon' },
+  { title: 'Coffre', location: 'Entrée' },
+  { title: 'Horloge', location: 'Cuisine' },
+  { title: 'Pesée', location: 'Arrière-cuisine' },
+  { title: 'Cartes', location: 'Salle de bain' },
+];
+
+// =====================================================================
+//  ÉTAT LOCAL
+// =====================================================================
+let db, auth;
+const S = {
+  uid: null,
+  code: null,          // code du salon courant
+  pseudo: '',
+  role: null,          // 'SURVIVANT' | 'TUEUR' — jamais envoyé à Firebase
+  room: null,          // dernier instantané du salon
+  unsub: null,
+  offset: 0,           // décalage horloge locale → horloge serveur (ms)
+  dirty: true,
+  lastSig: '',
+  lastStatus: null,
+  lastSabCount: null,
+  mySab: {},           // { taskId: triggerAt } — sabotages programmés par ce téléphone
+  committing: new Set(),
+  pendingTx: 0,        // transactions de ce téléphone pas encore confirmées par le serveur
+  finishing: false,
+  hostOpen: false,
+  endDismissed: false,
+};
+
+// =====================================================================
+//  UTILITAIRES
+// =====================================================================
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const vibrate = (p) => { try { navigator.vibrate?.(p); } catch {} };
+const serverNow = () => Date.now() + S.offset;
+const roomRef = () => ref(db, `rooms/${S.code}`);
+const taskRef = (id) => ref(db, `rooms/${S.code}/tasks/${id}`);
+const isHost = () => !!S.room && S.room.hostUid === S.uid;
+
+function randomCode() {
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  return Array.from({ length: 4 }, () => A[Math.floor(Math.random() * A.length)]).join('');
+}
+
+// Statut "réel" d'une tâche : un sabotage dont l'échéance (heure serveur) est passée
+// compte comme saboté, même si aucun client ne l'a encore écrit dans la base.
+function effStatus(t, now = serverNow()) {
+  if (t.status === 'completed' && t.sabotageTriggerAt && now >= t.sabotageTriggerAt) return 'sabotaged';
+  return t.status || 'pending';
+}
+
+function taskList() {
+  return Object.entries(S.room?.tasks || {})
+    .map(([id, t]) => ({ ...t, id }))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
+
+function showScreen(name) {
+  for (const s of ['config', 'loading', 'home', 'room']) $('screen-' + s).hidden = s !== name;
+}
+
+let toastTimer;
+function toast(msg, ms = 2600) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+// --- Son d'alerte (débloqué au premier toucher, exigence iOS) ---
+let audioCtx = null;
+document.addEventListener('pointerdown', () => {
+  try {
+    audioCtx ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch {}
+}, { passive: true });
+
+function alarm() {
+  vibrate([400, 150, 400, 150, 400]);
+  if (!audioCtx) return;
+  try {
+    const t0 = audioCtx.currentTime;
+    for (let i = 0; i < 4; i++) {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      const t = t0 + i * 0.22;
+      o.type = 'square';
+      o.frequency.value = i % 2 ? 660 : 880;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + 0.2);
+    }
+  } catch {}
+}
+
+// --- Écran toujours allumé pendant la partie ---
+let wakeLock = null, wakePending = false;
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && !wakePending && 'wakeLock' in navigator) {
+      wakePending = true;
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!on && wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch {} finally { wakePending = false; }
+}
+
+// =====================================================================
+//  ACCUEIL
+// =====================================================================
+let selectedRole = null;
+
+function renderRoleButtons() {
+  // Même rendu neutre pour les deux rôles : un regard par-dessus l'épaule ne révèle rien de plus.
+  document.querySelectorAll('[data-role]').forEach((b) => {
+    const on = b.dataset.role === selectedRole;
+    b.className = 'rounded-xl border px-3 py-4 text-base font-bold transition ' +
+      (on ? 'border-zinc-100 bg-zinc-100 text-zinc-900' : 'border-zinc-800 bg-zinc-900 text-zinc-300');
+  });
+}
+
+function homeError(msg) { $('home-error').textContent = msg || ''; }
+
+function readHome() {
+  const pseudo = $('in-pseudo').value.trim();
+  if (!pseudo) { homeError('Choisis un pseudo.'); return null; }
+  if (!selectedRole) { homeError('Choisis ton rôle.'); return null; }
+  homeError('');
+  return { pseudo, role: selectedRole };
+}
+
+function busy(on) { $('btn-create').disabled = on; $('btn-join').disabled = on; }
+
+async function createRoom() {
+  const h = readHome();
+  if (!h) return;
+  busy(true);
+  try {
+    let code = null;
+    for (let i = 0; i < 15 && !code; i++) {
+      const c = randomCode();
+      const tasks = {};
+      DEFAULT_TASKS.forEach((t, idx) => {
+        const id = push(ref(db, `rooms/${c}/tasks`)).key;
+        tasks[id] = { id, title: t.title, location: t.location, status: 'pending', order: idx };
+      });
+      // Transaction : n'écrit le salon que si ce code n'existe pas déjà.
+      const res = await runTransaction(ref(db, `rooms/${c}`), (cur) => {
+        if (cur !== null) return; // code déjà pris → abandon
+        return {
+          code: c, host: h.pseudo, hostUid: S.uid, status: 'lobby',
+          sabotageDelay: DEFAULT_DELAY, createdAt: Date.now(), tasks,
+        };
+      });
+      if (res.committed) code = c;
+    }
+    if (!code) throw new Error('Impossible de générer un code libre, réessaie.');
+    await enterRoom(code, h.pseudo, h.role);
+  } catch (e) {
+    homeError(e.message);
+  } finally {
+    busy(false);
+  }
+}
+
+async function joinRoom() {
+  const h = readHome();
+  if (!h) return;
+  const code = $('in-code').value.trim().toUpperCase();
+  if (!/^[A-Z]{4}$/.test(code)) return homeError('Le code fait 4 lettres.');
+  busy(true);
+  try {
+    await enterRoom(code, h.pseudo, h.role);
+  } catch (e) {
+    homeError(e.message);
+  } finally {
+    busy(false);
+  }
+}
+
+// =====================================================================
+//  ENTRÉE / SORTIE DU SALON
+// =====================================================================
+async function enterRoom(code, pseudo, role) {
+  const snap = await get(ref(db, `rooms/${code}`));
+  if (!snap.exists()) throw new Error('Salon introuvable.');
+
+  if (S.unsub) S.unsub();
+  Object.assign(S, {
+    code, pseudo, role, room: snap.val(), dirty: true, lastSig: '', lastStatus: null,
+    lastSabCount: null, hostOpen: false, endDismissed: false, mySab: store.get('mp.sab.' + code) || {},
+  });
+  store.set('mp.session', { code, pseudo, role });
+  store.set('mp.pseudo', pseudo);
+
+  await registerPresence();
+  S.unsub = onValue(roomRef(), (s) => {
+    if (!s.exists()) { toast('Le salon a été supprimé.'); exitRoom(); return; }
+    S.room = s.val();
+    S.dirty = true;
+    tick();
+  });
+
+  history.replaceState(null, '', location.pathname);
+  showScreen('room');
+  tick();
+}
+
+async function registerPresence() {
+  if (!S.code || !S.uid) return;
+  const pRef = ref(db, `rooms/${S.code}/players/${S.uid}`);
+  await update(pRef, { pseudo: S.pseudo, online: true, seenAt: serverTimestamp() });
+  await onDisconnect(pRef).update({ online: false });
+}
+
+function exitRoom() {
+  if (S.unsub) { S.unsub(); S.unsub = null; }
+  if (S.code && S.uid) {
+    const pRef = ref(db, `rooms/${S.code}/players/${S.uid}`);
+    update(pRef, { online: false }).catch(() => {});
+    onDisconnect(pRef).cancel().catch(() => {});
+  }
+  S.code = null;
+  S.room = null;
+  store.del('mp.session');
+  keepAwake(false);
+  $('end-overlay').hidden = true;
+  showScreen('home');
+}
+
+// =====================================================================
+//  ACTIONS DE JEU
+// =====================================================================
+// Transaction sur une tâche, comptabilisée tant que le serveur ne l'a pas confirmée :
+// l'état local est alors optimiste et ne doit pas servir à déclarer la victoire.
+async function taskTx(id, fn) {
+  S.pendingTx++;
+  try {
+    return await runTransaction(taskRef(id), fn);
+  } finally {
+    S.pendingTx--;
+    tick();
+  }
+}
+
+async function validateTask(id) {
+  try {
+    const res = await taskTx(id, (cur) => {
+      if (!cur) return;
+      if (effStatus(cur) === 'completed') return; // déjà verte (même avec un sabotage en attente)
+      return { ...cur, status: 'completed', sabotageTriggerAt: null, completedAt: Math.round(serverNow()) };
+    });
+    if (res.committed) vibrate(40);
+  } catch (e) {
+    toast('Erreur : ' + e.message);
+  }
+}
+
+// Bouton "Vérifier" présent pour tout le monde sur les tâches vertes.
+// Survivant : simple vérification. Tueur : programme le sabotage différé.
+async function inspectTask(id) {
+  if (S.role !== 'TUEUR') { toast('✓ Rien à signaler'); return; }
+  const delay = Number(S.room?.sabotageDelay) || DEFAULT_DELAY;
+  try {
+    const res = await taskTx(id, (cur) => {
+      if (!cur) return;
+      if (cur.status !== 'completed' || cur.sabotageTriggerAt) return; // pas verte, ou déjà programmée
+      return { ...cur, sabotageTriggerAt: Math.round(serverNow() + delay * 1000) };
+    });
+    if (res.committed) {
+      S.mySab[id] = res.snapshot.val().sabotageTriggerAt;
+      store.set('mp.sab.' + S.code, S.mySab);
+      toast(`Sabotage programmé. Activation dans ${delay} s…`);
+      tick();
+    } else {
+      toast('Sabotage impossible pour le moment.');
+    }
+  } catch (e) {
+    toast('Erreur : ' + e.message);
+  }
+}
+
+// N'importe quel téléphone actif officialise un sabotage arrivé à échéance.
+function commitSabotages(tasks, now) {
+  for (const t of tasks) {
+    if (!(t.status === 'completed' && t.sabotageTriggerAt && now >= t.sabotageTriggerAt)) continue;
+    if (S.committing.has(t.id)) continue;
+    S.committing.add(t.id);
+    taskTx(t.id, (cur) => {
+      if (!cur) return;
+      if (!(cur.status === 'completed' && cur.sabotageTriggerAt && serverNow() >= cur.sabotageTriggerAt)) return;
+      return { ...cur, status: 'sabotaged', sabotagedAt: cur.sabotageTriggerAt, sabotageTriggerAt: null };
+    }).catch(() => {}).finally(() => setTimeout(() => S.committing.delete(t.id), 3000));
+  }
+}
+
+// Victoire des survivants : toutes les tâches vertes ET aucun sabotage en attente.
+function checkVictory(tasks) {
+  if (S.finishing || S.pendingTx > 0 || !tasks.length) return;
+  if (!tasks.every((t) => t.status === 'completed' && !t.sabotageTriggerAt)) return;
+  S.finishing = true;
+  update(roomRef(), { status: 'finished', endReason: 'survivors' })
+    .catch(() => {})
+    .finally(() => setTimeout(() => { S.finishing = false; }, 3000));
+}
+
+// =====================================================================
+//  ACTIONS DE L'HÔTE
+// =====================================================================
+function resetTasksUpdates(base) {
+  for (const t of taskList()) {
+    base[`tasks/${t.id}/status`] = 'pending';
+    base[`tasks/${t.id}/sabotageTriggerAt`] = null;
+    base[`tasks/${t.id}/completedAt`] = null;
+    base[`tasks/${t.id}/sabotagedAt`] = null;
+  }
+  return base;
+}
+
+async function hostStart() {
+  if (!taskList().length) return toast('Ajoute au moins une tâche.');
+  await update(roomRef(), resetTasksUpdates({ status: 'playing', endReason: null, startedAt: serverTimestamp() }));
+  S.hostOpen = false;
+}
+
+async function hostReset(skipConfirm = false) {
+  if (!skipConfirm && !confirm('Réinitialiser ? Toutes les tâches repassent à « à faire » et tout le monde revient au salon d\'attente.')) return;
+  await update(roomRef(), resetTasksUpdates({ status: 'lobby', endReason: null }));
+}
+
+async function hostEnd() {
+  if (!confirm('Terminer la partie maintenant ?')) return;
+  await update(roomRef(), { status: 'finished', endReason: 'host' });
+}
+
+async function hostAddTask(e) {
+  e.preventDefault();
+  const title = $('hp-add-title').value.trim();
+  const loc = $('hp-add-loc').value.trim();
+  if (!title) return $('hp-add-title').focus();
+  const r = push(ref(db, `rooms/${S.code}/tasks`));
+  await set(r, { id: r.key, title, location: loc, status: 'pending', order: Date.now() });
+  $('hp-add').reset();
+  $('hp-add-title').focus();
+}
+
+async function hostRemoveTask(id) {
+  const t = S.room?.tasks?.[id];
+  if (!t || !confirm(`Retirer « ${t.title} – ${t.location} » ?`)) return;
+  await remove(taskRef(id));
+}
+
+// =====================================================================
+//  RENDU
+// =====================================================================
+const THEME = {
+  pending:   { card: 'border-zinc-800 bg-zinc-900', badge: 'bg-zinc-800 text-zinc-500', icon: '○', label: 'À faire' },
+  completed: { card: 'border-emerald-400 bg-emerald-600', badge: 'bg-black/20 text-white', icon: '✓', label: 'Validée' },
+  sabotaged: { card: 'sabotaged border-red-300 bg-red-600', badge: 'bg-black/25 text-white', icon: '⚠', label: 'Sabotée' },
+};
+
+function taskCard(t, eff, playing) {
+  const th = THEME[eff];
+  const id = esc(t.id);
+  const inspect = playing && eff === 'completed'
+    ? `<button type="button" data-action="inspect" data-id="${id}" class="shrink-0 rounded-lg bg-black/15 px-3 py-2 text-xs font-semibold text-white/85 active:bg-black/30">Vérifier</button>`
+    : `<span class="shrink-0 rounded-full ${th.badge} px-2 py-1 text-[10px] font-bold uppercase tracking-wider">${th.label}</span>`;
+  const validate = playing && eff !== 'completed'
+    ? `<button type="button" data-action="validate" data-id="${id}" class="mt-3 w-full rounded-xl py-3.5 text-base font-black transition active:scale-[.98] ${eff === 'sabotaged' ? 'bg-white text-red-700' : 'bg-zinc-100 text-zinc-900'}">Valider la tâche</button>`
+    : '';
+  return `
+    <article class="rounded-2xl border p-4 ${th.card}">
+      <div class="flex items-center gap-3">
+        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full ${th.badge} text-lg font-black">${th.icon}</div>
+        <div class="min-w-0 flex-1">
+          <h3 class="truncate text-lg font-bold leading-tight">${esc(t.title)}</h3>
+          <p class="truncate text-sm opacity-75">📍 ${esc(t.location || '—')}</p>
+          <span data-countdown="${id}" class="font-mono text-xs text-white/70"></span>
+        </div>
+        ${inspect}
+      </div>
+      ${validate}
+    </article>`;
+}
+
+function playerChips() {
+  const players = Object.entries(S.room?.players || {})
+    .map(([uid, p]) => ({ uid, ...p }))
+    .sort((a, b) => (b.online - a.online) || String(a.pseudo).localeCompare(b.pseudo));
+  const html = players.map((p) => `
+    <li class="flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1 text-sm ${p.online ? '' : 'opacity-50'}">
+      <span class="h-2 w-2 rounded-full ${p.online ? 'bg-emerald-400' : 'bg-zinc-600'}"></span>${esc(p.pseudo)}${p.uid === S.room.hostUid ? ' <span class="text-xs text-amber-300">★</span>' : ''}
+    </li>`).join('');
+  return { html, online: players.filter((p) => p.online).length };
+}
+
+let qrFor = null;
+function renderQr() {
+  if (qrFor === S.code) return;
+  qrFor = S.code;
+  const url = `${location.origin}${location.pathname}?r=${S.code}`;
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    $('hp-qr').innerHTML = `<img alt="QR code" class="h-full w-full [image-rendering:pixelated]" src="${qr.createDataURL(6, 0)}">`;
+  } catch {
+    $('hp-qr').innerHTML = '';
+    $('hp-qr').hidden = true;
+  }
+}
+
+function renderHostPanel(tasks) {
+  const r = S.room, st = r.status;
+  $('hp-status').textContent = { lobby: 'Salon d\'attente', playing: 'En cours', finished: 'Terminée' }[st] || st;
+  $('hp-code').textContent = S.code;
+  $('hp-invite').hidden = st !== 'lobby';
+  if (st === 'lobby') renderQr();
+  $('hp-delays').innerHTML = DELAYS.map((d) => `
+    <button type="button" data-action="delay" data-delay="${d}"
+      class="rounded-lg py-2 text-sm font-bold ${Number(r.sabotageDelay) === d ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-300'}">${d}s</button>`).join('');
+  $('hp-task-count').textContent = tasks.length;
+  $('hp-tasks').innerHTML = tasks.map((t) => `
+    <li class="flex items-center gap-2 rounded-lg bg-zinc-800/70 py-1 pl-3 pr-1">
+      <span class="min-w-0 flex-1 truncate text-sm"><b>${esc(t.title)}</b> <span class="text-zinc-400">· ${esc(t.location)}</span></span>
+      <button type="button" data-action="remove-task" data-id="${esc(t.id)}" class="h-9 w-9 shrink-0 rounded-md text-zinc-400 active:bg-zinc-700" aria-label="Retirer">✕</button>
+    </li>`).join('') || '<li class="text-sm text-zinc-500">Aucune tâche — ajoutes-en une.</li>';
+  $('hp-start').hidden = st === 'playing';
+  $('hp-start').textContent = st === 'finished' ? '▶ Relancer une partie' : '▶ Lancer la partie';
+  $('hp-end').hidden = st !== 'playing';
+  $('hp-reset').hidden = st === 'lobby';
+  $('hp-reset').classList.toggle('col-span-2', st !== 'playing');
+}
+
+function render(tasks, now) {
+  const r = S.room, st = r.status, host = isHost();
+
+  // Changement de phase
+  if (S.lastStatus && S.lastStatus !== st) {
+    if (st === 'playing') { toast('🔪 La partie commence !'); vibrate([100, 60, 100]); }
+    if (st === 'lobby') { S.mySab = {}; store.del('mp.sab.' + S.code); }
+    S.endDismissed = false;
+  }
+  S.lastStatus = st;
+
+  // Bandeau
+  $('hdr-code').textContent = S.code;
+  $('btn-host').hidden = !host || st === 'lobby';
+  $('btn-host').classList.toggle('bg-zinc-100', S.hostOpen);
+  $('btn-host').classList.toggle('text-zinc-900', S.hostOpen);
+
+  const total = tasks.length;
+  const done = tasks.filter((t) => effStatus(t, now) === 'completed').length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  $('progress-wrap').hidden = st === 'lobby';
+  $('progress-text').textContent = `${done}/${total} · ${pct} %`;
+  $('progress-bar').style.width = pct + '%';
+
+  const sab = tasks.filter((t) => effStatus(t, now) === 'sabotaged');
+  $('alert').hidden = !(st === 'playing' && sab.length);
+  $('alert-detail').textContent = sab.map((t) => `${t.title} – ${t.location}`).join(' · ');
+  if (S.lastSabCount !== null && st === 'playing' && sab.length > S.lastSabCount) alarm();
+  S.lastSabCount = sab.length;
+
+  // Joueurs
+  const { html, online } = playerChips();
+  $('wait-players').innerHTML = html;
+  $('hp-players').innerHTML = html;
+  $('wait-count').textContent = online;
+  $('hp-players-count').textContent = `${online} en ligne`;
+
+  // Panneaux
+  $('view-wait').hidden = st !== 'lobby' || host;
+  $('host-panel').hidden = !host || (st !== 'lobby' && !S.hostOpen);
+  if (host) renderHostPanel(tasks);
+
+  // Tâches
+  $('task-list').hidden = st === 'lobby';
+  $('task-list').innerHTML = st === 'lobby' ? '' :
+    (tasks.map((t) => taskCard(t, effStatus(t, now), st === 'playing')).join('') ||
+     '<p class="py-10 text-center text-zinc-500">Aucune tâche.</p>');
+
+  // Fin de partie
+  const showEnd = st === 'finished' && !S.endDismissed;
+  $('end-overlay').hidden = !showEnd;
+  if (showEnd) {
+    const win = r.endReason === 'survivors';
+    $('end-icon').textContent = win ? '🎉' : '🏁';
+    $('end-title').textContent = win ? 'Victoire des survivants !' : 'Partie terminée';
+    $('end-text').textContent = win
+      ? 'Toutes les tâches ont été validées.'
+      : `L'hôte a mis fin à la partie — ${done}/${total} tâches validées.`;
+    $('end-restart').hidden = !host;
+  }
+
+  keepAwake(st === 'playing' && document.visibilityState === 'visible');
+}
+
+// Décompte visible uniquement sur le téléphone qui a programmé le sabotage.
+function updateCountdowns(tasks, now) {
+  const byId = Object.fromEntries(tasks.map((t) => [t.id, t]));
+  let changed = false;
+  for (const [id, trig] of Object.entries(S.mySab)) {
+    if (byId[id]?.sabotageTriggerAt !== trig) { delete S.mySab[id]; changed = true; }
+  }
+  if (changed) store.set('mp.sab.' + S.code, S.mySab);
+  document.querySelectorAll('[data-countdown]').forEach((el) => {
+    const trig = S.mySab[el.dataset.countdown];
+    const left = trig ? Math.ceil((trig - now) / 1000) : 0;
+    el.textContent = left > 0 ? `⏱ ${left} s` : '';
+  });
+}
+
+// Boucle principale : recalcule l'état effectif (heure serveur) 4 fois par seconde.
+function tick() {
+  if (!S.code || !S.room) return;
+  const now = serverNow();
+  const tasks = taskList();
+  const sig = tasks.map((t) => t.id + ':' + effStatus(t, now)).join('|');
+  if (S.dirty || sig !== S.lastSig) {
+    S.dirty = false;
+    S.lastSig = sig;
+    render(tasks, now);
+  }
+  updateCountdowns(tasks, now);
+  if (S.room.status === 'playing') {
+    commitSabotages(tasks, now);
+    checkVictory(tasks);
+  }
+}
+
+// =====================================================================
+//  ÉVÉNEMENTS
+// =====================================================================
+function bindUi() {
+  document.querySelectorAll('[data-role]').forEach((b) =>
+    b.addEventListener('click', () => { selectedRole = b.dataset.role; renderRoleButtons(); homeError(''); }));
+  renderRoleButtons();
+
+  $('btn-create').addEventListener('click', createRoom);
+  $('btn-join').addEventListener('click', joinRoom);
+  $('in-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); });
+  $('in-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
+
+  // Rôle : maintenir appuyé pour l'afficher
+  const roleBtn = $('hdr-role');
+  const showRole = (on) => { roleBtn.textContent = on ? (S.role === 'TUEUR' ? '🔪 Tueur' : '🙂 Survivant') : '👁 Rôle'; };
+  roleBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); showRole(true); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) roleBtn.addEventListener(ev, () => showRole(false));
+  roleBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  $('btn-leave').addEventListener('click', () => { if (confirm('Quitter la partie ?')) exitRoom(); });
+  $('btn-host').addEventListener('click', () => {
+    S.hostOpen = !S.hostOpen;
+    S.dirty = true;
+    tick();
+    if (S.hostOpen) window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  $('hp-add').addEventListener('submit', (e) => hostAddTask(e).catch((err) => toast('Erreur : ' + err.message)));
+  $('hp-start').addEventListener('click', () => hostStart().catch((err) => toast('Erreur : ' + err.message)));
+  $('hp-reset').addEventListener('click', () => hostReset().catch((err) => toast('Erreur : ' + err.message)));
+  $('hp-end').addEventListener('click', () => hostEnd().catch((err) => toast('Erreur : ' + err.message)));
+  $('end-restart').addEventListener('click', () => hostReset(true).catch((err) => toast('Erreur : ' + err.message)));
+  $('end-close').addEventListener('click', () => { S.endDismissed = true; $('end-overlay').hidden = true; });
+
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el || !S.code) return;
+    const { action, id } = el.dataset;
+    if (action === 'validate') validateTask(id);
+    else if (action === 'inspect') inspectTask(id);
+    else if (action === 'remove-task') hostRemoveTask(id).catch((err) => toast('Erreur : ' + err.message));
+    else if (action === 'delay') update(roomRef(), { sabotageDelay: Number(el.dataset.delay) }).catch((err) => toast('Erreur : ' + err.message));
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { S.dirty = true; tick(); }
+  });
+
+  setInterval(tick, 250);
+}
+
+// =====================================================================
+//  DÉMARRAGE
+// =====================================================================
+function boot() {
+  bindUi();
+
+  if (firebaseConfig.apiKey.startsWith('VOTRE')) { showScreen('config'); return; }
+
+  try {
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getDatabase(app);
+  } catch (e) {
+    $('config-error').textContent = e.message;
+    showScreen('config');
+    return;
+  }
+
+  onValue(ref(db, '.info/serverTimeOffset'), (s) => { S.offset = Number(s.val()) || 0; });
+  onValue(ref(db, '.info/connected'), (s) => {
+    const on = !!s.val();
+    $('conn').className = 'h-2 w-2 rounded-full ' + (on ? 'bg-emerald-400' : 'bg-red-500 blink');
+    if (on) registerPresence().catch(() => {});
+  });
+
+  const params = new URLSearchParams(location.search);
+  const codeParam = (params.get('r') || '').toUpperCase();
+  if (/^[A-Z]{4}$/.test(codeParam)) $('in-code').value = codeParam;
+  $('in-pseudo').value = store.get('mp.pseudo') || '';
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      signInAnonymously(auth).catch((e) => {
+        $('config-error').textContent = ['auth/operation-not-allowed', 'auth/admin-restricted-operation', 'auth/configuration-not-found'].includes(e.code)
+          ? 'Active la connexion « Anonyme » dans Firebase → Authentication → Sign-in method.'
+          : e.message;
+        showScreen('config');
+      });
+      return;
+    }
+    if (S.uid) return;
+    S.uid = user.uid;
+
+    // Reconnexion automatique après rechargement / écran verrouillé
+    const saved = store.get('mp.session');
+    if (saved?.code && (!codeParam || codeParam === saved.code)) {
+      try { await enterRoom(saved.code, saved.pseudo, saved.role); return; } catch { store.del('mp.session'); }
+    }
+    showScreen('home');
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
