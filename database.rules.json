@@ -14,7 +14,13 @@
           ".write": "auth != null && data.parent().child('status').val() === 'playing' && newData.val() === 'survivors'"
         },
         "sabotageDelay": {
-          ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 600"
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3600"
+        },
+        "killers": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20"
+        },
+        "sheriffs": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
         },
 
         "players": {
@@ -32,6 +38,16 @@
               ".validate": "newData.val() === 'pending' || newData.val() === 'completed' || newData.val() === 'sabotaged'"
             }
           }
+        }
+      }
+    },
+
+    "roles": {
+      "$code": {
+        ".write": "auth != null && root.child('rooms').child($code).child('hostUid').val() === auth.uid",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".validate": "newData.child('role').val() === 'TUEUR' || newData.child('role').val() === 'SHERIFF' || newData.child('role').val() === 'SURVIVANT'"
         }
       }
     }

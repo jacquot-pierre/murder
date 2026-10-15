@@ -55,13 +55,7 @@
              placeholder="Ex : Colonel Moutarde">
     </label>
 
-    <div>
-      <span class="text-sm text-zinc-400">Ton rôle — secret, cache ton écran</span>
-      <div class="mt-1 grid grid-cols-2 gap-2">
-        <button type="button" data-role="SURVIVANT">🙂 Survivant</button>
-        <button type="button" data-role="TUEUR">🔪 Tueur</button>
-      </div>
-    </div>
+    <p class="-mt-2 text-xs text-zinc-500">Les rôles (tueur, shérif, survivant) sont tirés au sort au lancement de la partie.</p>
 
     <div class="flex flex-col gap-3">
       <button id="btn-create" type="button"
@@ -122,6 +116,7 @@
         <div class="text-4xl">⏳</div>
         <h2 class="mt-2 text-lg font-bold">En attente du lancement</h2>
         <p class="mt-1 text-sm text-zinc-400">L'hôte prépare la partie. Garde cette page ouverte.</p>
+        <p id="wait-roles" class="mt-3 rounded-lg bg-zinc-800/70 px-3 py-2 text-sm text-zinc-300"></p>
         <div class="mt-4 text-left text-sm text-zinc-400">Joueurs (<span id="wait-count">0</span>)</div>
         <ul id="wait-players" class="mt-2 flex flex-wrap gap-1"></ul>
       </div>
@@ -143,8 +138,43 @@
         </div>
 
         <div>
+          <div class="mb-2 text-sm text-zinc-400">Joueurs (<span id="hp-players-count">0</span>)</div>
+          <ul id="hp-players" class="flex flex-wrap gap-1"></ul>
+        </div>
+
+        <div id="hp-roles">
+          <div class="mb-2 text-sm text-zinc-400">Rôles tirés au sort au lancement</div>
+          <div class="grid gap-1">
+            <div class="flex items-center justify-between rounded-lg bg-zinc-800/70 py-1 pl-3 pr-1">
+              <span class="text-sm">🔪 Tueurs</span>
+              <div class="flex items-center">
+                <button type="button" data-action="count" data-key="killers" data-delta="-1" class="h-9 w-9 rounded-md text-lg active:bg-zinc-700">−</button>
+                <span id="hp-killers" class="w-6 text-center font-mono font-bold">1</span>
+                <button type="button" data-action="count" data-key="killers" data-delta="1" class="h-9 w-9 rounded-md text-lg active:bg-zinc-700">+</button>
+              </div>
+            </div>
+            <div class="flex items-center justify-between rounded-lg bg-zinc-800/70 py-1 pl-3 pr-1">
+              <span class="text-sm">🤠 Shérifs</span>
+              <div class="flex items-center">
+                <button type="button" data-action="count" data-key="sheriffs" data-delta="-1" class="h-9 w-9 rounded-md text-lg active:bg-zinc-700">−</button>
+                <span id="hp-sheriffs" class="w-6 text-center font-mono font-bold">1</span>
+                <button type="button" data-action="count" data-key="sheriffs" data-delta="1" class="h-9 w-9 rounded-md text-lg active:bg-zinc-700">+</button>
+              </div>
+            </div>
+          </div>
+          <p id="hp-roles-summary" class="mt-2 text-xs text-zinc-500"></p>
+        </div>
+
+        <div>
           <div class="mb-2 text-sm text-zinc-400">Délai d'activation du sabotage</div>
           <div id="hp-delays" class="grid grid-cols-5 gap-1"></div>
+          <div class="mt-2 flex items-center gap-2">
+            <span class="text-sm text-zinc-400">Sur mesure :</span>
+            <input id="hp-delay-input" type="number" inputmode="numeric" min="1" max="3600" step="1"
+                   class="w-24 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-center font-mono text-base outline-none focus:border-zinc-500">
+            <span class="text-sm text-zinc-400">s</span>
+            <span id="hp-delay-human" class="ml-auto text-xs text-zinc-500"></span>
+          </div>
         </div>
 
         <div>
@@ -159,11 +189,6 @@
           </form>
         </div>
 
-        <div>
-          <div class="mb-2 text-sm text-zinc-400">Joueurs (<span id="hp-players-count">0</span>)</div>
-          <ul id="hp-players" class="flex flex-wrap gap-1"></ul>
-        </div>
-
         <div class="grid grid-cols-2 gap-2">
           <button id="hp-start" type="button" class="col-span-2 rounded-xl bg-emerald-500 py-3.5 font-black text-zinc-950 active:scale-[.98]">▶ Lancer la partie</button>
           <button id="hp-end" type="button" class="rounded-xl border border-zinc-700 bg-zinc-800 py-3 font-bold">■ Terminer</button>
@@ -175,6 +200,28 @@
       <div id="task-list" class="flex select-none flex-col gap-3"></div>
     </main>
   </section>
+</div>
+
+<!-- Révélation du rôle (début de partie) — même rendu neutre quel que soit le rôle -->
+<div id="role-overlay" hidden class="fixed inset-0 z-40 grid place-items-center bg-zinc-950 p-6">
+  <div class="w-full max-w-sm text-center">
+    <p class="text-sm uppercase tracking-widest text-zinc-500">La partie commence</p>
+    <button id="role-hold" type="button" class="mt-4 min-h-[16rem] w-full rounded-3xl border border-zinc-700 bg-zinc-900 p-6">
+      <div id="role-hidden">
+        <div class="text-5xl">🂠</div>
+        <div class="mt-3 text-lg font-bold">Maintiens appuyé pour découvrir ton rôle</div>
+        <div class="mt-1 text-xs text-zinc-500">Cache ton écran des autres joueurs</div>
+      </div>
+      <div id="role-shown" hidden>
+        <div id="role-icon" class="text-6xl"></div>
+        <div id="role-name" class="mt-2 text-3xl font-black"></div>
+        <p id="role-desc" class="mt-3 text-sm text-zinc-300"></p>
+        <p id="role-mates" class="mt-3 text-sm font-semibold text-zinc-100"></p>
+      </div>
+    </button>
+    <button id="role-ok" type="button" class="mt-4 w-full rounded-xl bg-zinc-100 py-3.5 font-black text-zinc-900">C'est noté</button>
+    <p class="mt-3 text-xs text-zinc-500">Tu pourras revoir ton rôle en maintenant « 👁 Rôle » en haut de l'écran.</p>
+  </div>
 </div>
 
 <!-- Fin de partie -->
@@ -218,8 +265,25 @@ const firebaseConfig = {
 // =====================================================================
 //  RÉGLAGES DU JEU
 // =====================================================================
-const DELAYS = [15, 30, 45, 60, 90];
+const DELAYS = [15, 30, 45, 60, 90];   // raccourcis ; l'hôte peut aussi saisir n'importe quelle valeur
 const DEFAULT_DELAY = 30;
+const MAX_DELAY = 3600;
+const DEFAULT_KILLERS = 1;
+const DEFAULT_SHERIFFS = 1;
+const ROLES = {
+  TUEUR: {
+    icon: '🔪', name: 'Tueur',
+    desc: (delay) => `Sur une tâche verte, le bouton « Vérifier » programme un sabotage qui se déclenche ${fmtDelay(delay)} plus tard. Éloigne-toi avant qu'elle passe au rouge !`,
+  },
+  SHERIFF: {
+    icon: '🤠', name: 'Shérif',
+    desc: () => 'Tu es un survivant armé. Fais les tâches et neutralise le tueur… sans te tromper de cible.',
+  },
+  SURVIVANT: {
+    icon: '🙂', name: 'Survivant',
+    desc: () => 'Réalise les tâches et valide-les sur ton téléphone. Méfie-toi de tout le monde.',
+  },
+};
 const DEFAULT_TASKS = [
   { title: 'Multiprise', location: 'Salon' },
   { title: 'Coffre', location: 'Entrée' },
@@ -236,9 +300,11 @@ const S = {
   uid: null,
   code: null,          // code du salon courant
   pseudo: '',
-  role: null,          // 'SURVIVANT' | 'TUEUR' — jamais envoyé à Firebase
+  myRole: null,        // { role: 'TUEUR' | 'SHERIFF' | 'SURVIVANT', mates?: [pseudos] } — lisible par moi seul
+  roleLoaded: false,
   room: null,          // dernier instantané du salon
   unsub: null,
+  unsubRole: null,
   offset: 0,           // décalage horloge locale → horloge serveur (ms)
   dirty: true,
   lastSig: '',
@@ -267,6 +333,32 @@ const serverNow = () => Date.now() + S.offset;
 const roomRef = () => ref(db, `rooms/${S.code}`);
 const taskRef = (id) => ref(db, `rooms/${S.code}/tasks/${id}`);
 const isHost = () => !!S.room && S.room.hostUid === S.uid;
+// Sans rôle attribué (arrivée après le lancement), on joue survivant.
+const myRole = () => S.myRole?.role || 'SURVIVANT';
+const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+
+function fmtDelay(s) {
+  s = Number(s) || 0;
+  if (s < 60) return `${s} s`;
+  const m = Math.floor(s / 60), r = s % 60;
+  return r ? `${m} min ${r} s` : `${m} min`;
+}
+
+function shuffle(arr) {
+  const rnd = new Uint32Array(arr.length);
+  crypto.getRandomValues(rnd);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = rnd[i] % (i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function players() {
+  return Object.entries(S.room?.players || {})
+    .filter(([, p]) => p && p.pseudo)
+    .map(([uid, p]) => ({ uid, ...p }));
+}
 
 function randomCode() {
   const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -347,25 +439,13 @@ async function keepAwake(on) {
 // =====================================================================
 //  ACCUEIL
 // =====================================================================
-let selectedRole = null;
-
-function renderRoleButtons() {
-  // Même rendu neutre pour les deux rôles : un regard par-dessus l'épaule ne révèle rien de plus.
-  document.querySelectorAll('[data-role]').forEach((b) => {
-    const on = b.dataset.role === selectedRole;
-    b.className = 'rounded-xl border px-3 py-4 text-base font-bold transition ' +
-      (on ? 'border-zinc-100 bg-zinc-100 text-zinc-900' : 'border-zinc-800 bg-zinc-900 text-zinc-300');
-  });
-}
-
 function homeError(msg) { $('home-error').textContent = msg || ''; }
 
 function readHome() {
   const pseudo = $('in-pseudo').value.trim();
   if (!pseudo) { homeError('Choisis un pseudo.'); return null; }
-  if (!selectedRole) { homeError('Choisis ton rôle.'); return null; }
   homeError('');
-  return { pseudo, role: selectedRole };
+  return { pseudo };
 }
 
 function busy(on) { $('btn-create').disabled = on; $('btn-join').disabled = on; }
@@ -388,13 +468,14 @@ async function createRoom() {
         if (cur !== null) return; // code déjà pris → abandon
         return {
           code: c, host: h.pseudo, hostUid: S.uid, status: 'lobby',
-          sabotageDelay: DEFAULT_DELAY, createdAt: Date.now(), tasks,
+          sabotageDelay: DEFAULT_DELAY, killers: DEFAULT_KILLERS, sheriffs: DEFAULT_SHERIFFS,
+          createdAt: Date.now(), tasks,
         };
       });
       if (res.committed) code = c;
     }
     if (!code) throw new Error('Impossible de générer un code libre, réessaie.');
-    await enterRoom(code, h.pseudo, h.role);
+    await enterRoom(code, h.pseudo);
   } catch (e) {
     homeError(e.message);
   } finally {
@@ -409,7 +490,7 @@ async function joinRoom() {
   if (!/^[A-Z]{4}$/.test(code)) return homeError('Le code fait 4 lettres.');
   busy(true);
   try {
-    await enterRoom(code, h.pseudo, h.role);
+    await enterRoom(code, h.pseudo);
   } catch (e) {
     homeError(e.message);
   } finally {
@@ -420,22 +501,30 @@ async function joinRoom() {
 // =====================================================================
 //  ENTRÉE / SORTIE DU SALON
 // =====================================================================
-async function enterRoom(code, pseudo, role) {
+async function enterRoom(code, pseudo) {
   const snap = await get(ref(db, `rooms/${code}`));
   if (!snap.exists()) throw new Error('Salon introuvable.');
 
-  if (S.unsub) S.unsub();
+  stopListeners();
   Object.assign(S, {
-    code, pseudo, role, room: snap.val(), dirty: true, lastSig: '', lastStatus: null,
+    code, pseudo, room: snap.val(), myRole: null, roleLoaded: false, dirty: true, lastSig: '', lastStatus: null,
     lastSabCount: null, hostOpen: false, endDismissed: false, mySab: store.get('mp.sab.' + code) || {},
   });
-  store.set('mp.session', { code, pseudo, role });
+  store.set('mp.session', { code, pseudo });
   store.set('mp.pseudo', pseudo);
 
   await registerPresence();
   S.unsub = onValue(roomRef(), (s) => {
     if (!s.exists()) { toast('Le salon a été supprimé.'); exitRoom(); return; }
     S.room = s.val();
+    if (!S.room.players?.[S.uid]) { toast('Tu as été retiré du salon.'); exitRoom(); return; }
+    S.dirty = true;
+    tick();
+  });
+  // Mon rôle : nœud séparé, lisible uniquement par moi (voir database.rules.json).
+  S.unsubRole = onValue(ref(db, `roles/${code}/${S.uid}`), (s) => {
+    S.myRole = s.val();
+    S.roleLoaded = true;
     S.dirty = true;
     tick();
   });
@@ -452,18 +541,26 @@ async function registerPresence() {
   await onDisconnect(pRef).update({ online: false });
 }
 
-function exitRoom() {
+function stopListeners() {
   if (S.unsub) { S.unsub(); S.unsub = null; }
+  if (S.unsubRole) { S.unsubRole(); S.unsubRole = null; }
+}
+
+// Quitter volontairement retire le joueur du salon (il ne recevra pas de rôle au prochain tirage).
+function exitRoom() {
+  stopListeners();
   if (S.code && S.uid) {
     const pRef = ref(db, `rooms/${S.code}/players/${S.uid}`);
-    update(pRef, { online: false }).catch(() => {});
     onDisconnect(pRef).cancel().catch(() => {});
+    remove(pRef).catch(() => {});
   }
   S.code = null;
   S.room = null;
+  S.myRole = null;
   store.del('mp.session');
   keepAwake(false);
   $('end-overlay').hidden = true;
+  $('role-overlay').hidden = true;
   showScreen('home');
 }
 
@@ -498,7 +595,7 @@ async function validateTask(id) {
 // Bouton "Vérifier" présent pour tout le monde sur les tâches vertes.
 // Survivant : simple vérification. Tueur : programme le sabotage différé.
 async function inspectTask(id) {
-  if (S.role !== 'TUEUR') { toast('✓ Rien à signaler'); return; }
+  if (myRole() !== 'TUEUR') { toast('✓ Rien à signaler'); return; }
   const delay = Number(S.room?.sabotageDelay) || DEFAULT_DELAY;
   try {
     const res = await taskTx(id, (cur) => {
@@ -556,15 +653,65 @@ function resetTasksUpdates(base) {
   return base;
 }
 
+const roleCounts = () => ({
+  killers: S.room?.killers ?? DEFAULT_KILLERS,
+  sheriffs: S.room?.sheriffs ?? DEFAULT_SHERIFFS,
+});
+
+// Tirage au sort des rôles parmi tous les joueurs du salon, puis lancement.
 async function hostStart() {
   if (!taskList().length) return toast('Ajoute au moins une tâche.');
+  const list = players();
+  const { killers, sheriffs } = roleCounts();
+  if (killers < 1) return toast('Il faut au moins 1 tueur.');
+  if (list.length < killers + sheriffs) {
+    return toast(`Pas assez de joueurs (${list.length}) pour ${plural(killers, 'tueur')} et ${plural(sheriffs, 'shérif')}.`, 4000);
+  }
+  const offline = list.filter((p) => !p.online);
+  if (offline.length && !confirm(`${offline.map((p) => p.pseudo).join(', ')} semble${offline.length > 1 ? 'nt' : ''} hors ligne mais recevra un rôle. Lancer quand même ?\n(Retire les joueurs absents avec ✕.)`)) return;
+
+  shuffle(list);
+  const killerList = list.slice(0, killers);
+  const roles = {};
+  list.forEach((p, i) => {
+    const role = i < killers ? 'TUEUR' : i < killers + sheriffs ? 'SHERIFF' : 'SURVIVANT';
+    roles[p.uid] = { role };
+    if (role === 'TUEUR' && killers > 1) {
+      roles[p.uid].mates = killerList.filter((k) => k.uid !== p.uid).map((k) => k.pseudo);
+    }
+  });
+  // Les rôles d'abord, le changement de statut ensuite : chacun connaît son rôle quand la partie démarre.
+  await set(ref(db, `roles/${S.code}`), roles);
   await update(roomRef(), resetTasksUpdates({ status: 'playing', endReason: null, startedAt: serverTimestamp() }));
   S.hostOpen = false;
 }
 
 async function hostReset(skipConfirm = false) {
-  if (!skipConfirm && !confirm('Réinitialiser ? Toutes les tâches repassent à « à faire » et tout le monde revient au salon d\'attente.')) return;
+  if (!skipConfirm && !confirm('Réinitialiser ? Toutes les tâches repassent à « à faire » et tout le monde revient au salon d\'attente. Les rôles seront retirés au sort.')) return;
   await update(roomRef(), resetTasksUpdates({ status: 'lobby', endReason: null }));
+  await remove(ref(db, `roles/${S.code}`));
+}
+
+async function hostSetCount(key, delta) {
+  const counts = roleCounts();
+  const next = Math.max(key === 'killers' ? 1 : 0, Math.min(20, counts[key] + delta));
+  if (next !== counts[key]) await update(roomRef(), { [key]: next });
+}
+
+async function hostSetDelay(value) {
+  const d = Math.round(Number(value));
+  if (!Number.isFinite(d) || d < 1 || d > MAX_DELAY) {
+    toast(`Délai entre 1 et ${MAX_DELAY} secondes.`);
+    S.dirty = true;
+    return;
+  }
+  await update(roomRef(), { sabotageDelay: d });
+}
+
+async function hostKick(uid) {
+  const p = S.room?.players?.[uid];
+  if (!p || !confirm(`Retirer ${p.pseudo} du salon ?`)) return;
+  await remove(ref(db, `rooms/${S.code}/players/${uid}`));
 }
 
 async function hostEnd() {
@@ -622,15 +769,39 @@ function taskCard(t, eff, playing) {
     </article>`;
 }
 
-function playerChips() {
-  const players = Object.entries(S.room?.players || {})
-    .map(([uid, p]) => ({ uid, ...p }))
-    .sort((a, b) => (b.online - a.online) || String(a.pseudo).localeCompare(b.pseudo));
-  const html = players.map((p) => `
-    <li class="flex items-center gap-1.5 rounded-full bg-zinc-800 px-3 py-1 text-sm ${p.online ? '' : 'opacity-50'}">
-      <span class="h-2 w-2 rounded-full ${p.online ? 'bg-emerald-400' : 'bg-zinc-600'}"></span>${esc(p.pseudo)}${p.uid === S.room.hostUid ? ' <span class="text-xs text-amber-300">★</span>' : ''}
-    </li>`).join('');
-  return { html, online: players.filter((p) => p.online).length };
+function playerChips(withKick) {
+  const list = players().sort((a, b) => (b.online - a.online) || String(a.pseudo).localeCompare(b.pseudo));
+  return list.map((p) => {
+    const kick = withKick && p.uid !== S.uid
+      ? `<button type="button" data-action="kick" data-uid="${esc(p.uid)}" class="-mr-2 ml-0.5 grid h-6 w-6 place-items-center rounded-full text-xs text-zinc-400 active:bg-zinc-700" aria-label="Retirer">✕</button>`
+      : '';
+    return `
+    <li class="flex items-center gap-1.5 rounded-full bg-zinc-800 py-1 pl-3 pr-3 text-sm ${p.online ? '' : 'opacity-50'}">
+      <span class="h-2 w-2 rounded-full ${p.online ? 'bg-emerald-400' : 'bg-zinc-600'}"></span>${esc(p.pseudo)}${p.uid === S.room.hostUid ? ' <span class="text-xs text-amber-300">★</span>' : ''}${kick}
+    </li>`;
+  }).join('');
+}
+
+function rolesSummary() {
+  const { killers, sheriffs } = roleCounts();
+  const n = players().length;
+  const survivors = n - killers - sheriffs;
+  if (survivors < 0) return `⚠️ ${plural(n, 'joueur')} : pas assez pour ${plural(killers, 'tueur')} et ${plural(sheriffs, 'shérif')}.`;
+  return `${plural(n, 'joueur')} → ${plural(killers, 'tueur')} · ${plural(sheriffs, 'shérif')} · ${plural(survivors, 'survivant')}`;
+}
+
+// Écran de révélation : affiché une fois par partie (clé = salon + heure de lancement).
+const revealKey = () => `${S.code}:${S.room?.startedAt}`;
+function renderRoleOverlay(st) {
+  const show = st === 'playing' && S.roleLoaded && store.get('mp.revealed') !== revealKey();
+  $('role-overlay').hidden = !show;
+  if (!show) return;
+  const info = ROLES[myRole()];
+  $('role-icon').textContent = info.icon;
+  $('role-name').textContent = info.name;
+  $('role-desc').textContent = info.desc(S.room.sabotageDelay);
+  const mates = Object.values(S.myRole?.mates || {});
+  $('role-mates').textContent = mates.length ? `${mates.length > 1 ? 'Tes complices' : 'Ton complice'} : ${mates.join(', ')}` : '';
 }
 
 let qrFor = null;
@@ -658,6 +829,16 @@ function renderHostPanel(tasks) {
   $('hp-delays').innerHTML = DELAYS.map((d) => `
     <button type="button" data-action="delay" data-delay="${d}"
       class="rounded-lg py-2 text-sm font-bold ${Number(r.sabotageDelay) === d ? 'bg-zinc-100 text-zinc-900' : 'bg-zinc-800 text-zinc-300'}">${d}s</button>`).join('');
+  // Ne pas écraser la saisie en cours
+  if (document.activeElement !== $('hp-delay-input')) $('hp-delay-input').value = r.sabotageDelay ?? DEFAULT_DELAY;
+  $('hp-delay-human').textContent = `= ${fmtDelay(r.sabotageDelay ?? DEFAULT_DELAY)}`;
+
+  const { killers, sheriffs } = roleCounts();
+  $('hp-roles').hidden = st === 'playing';
+  $('hp-killers').textContent = killers;
+  $('hp-sheriffs').textContent = sheriffs;
+  $('hp-roles-summary').textContent = rolesSummary();
+  $('hp-players').innerHTML = playerChips(st !== 'playing');
   $('hp-task-count').textContent = tasks.length;
   $('hp-tasks').innerHTML = tasks.map((t) => `
     <li class="flex items-center gap-2 rounded-lg bg-zinc-800/70 py-1 pl-3 pr-1">
@@ -684,6 +865,7 @@ function render(tasks, now) {
 
   // Bandeau
   $('hdr-code').textContent = S.code;
+  $('hdr-role').hidden = st === 'lobby';
   $('btn-host').hidden = !host || st === 'lobby';
   $('btn-host').classList.toggle('bg-zinc-100', S.hostOpen);
   $('btn-host').classList.toggle('text-zinc-900', S.hostOpen);
@@ -702,11 +884,12 @@ function render(tasks, now) {
   S.lastSabCount = sab.length;
 
   // Joueurs
-  const { html, online } = playerChips();
-  $('wait-players').innerHTML = html;
-  $('hp-players').innerHTML = html;
-  $('wait-count').textContent = online;
-  $('hp-players-count').textContent = `${online} en ligne`;
+  const list = players();
+  const online = list.filter((p) => p.online).length;
+  $('wait-players').innerHTML = playerChips(false);
+  $('wait-count').textContent = list.length;
+  $('wait-roles').textContent = `🎲 Rôles tirés au sort au lancement : ${rolesSummary()}`;
+  $('hp-players-count').textContent = `${list.length} · ${online} en ligne`;
 
   // Panneaux
   $('view-wait').hidden = st !== 'lobby' || host;
@@ -732,6 +915,7 @@ function render(tasks, now) {
     $('end-restart').hidden = !host;
   }
 
+  renderRoleOverlay(st);
   keepAwake(st === 'playing' && document.visibilityState === 'visible');
 }
 
@@ -772,21 +956,34 @@ function tick() {
 //  ÉVÉNEMENTS
 // =====================================================================
 function bindUi() {
-  document.querySelectorAll('[data-role]').forEach((b) =>
-    b.addEventListener('click', () => { selectedRole = b.dataset.role; renderRoleButtons(); homeError(''); }));
-  renderRoleButtons();
-
   $('btn-create').addEventListener('click', createRoom);
   $('btn-join').addEventListener('click', joinRoom);
   $('in-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, ''); });
   $('in-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinRoom(); });
 
-  // Rôle : maintenir appuyé pour l'afficher
+  // Rôle : maintenir appuyé pour l'afficher (bandeau et écran de révélation)
+  const holdToReveal = (el, onShow) => {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); onShow(true); });
+    for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) el.addEventListener(ev, () => onShow(false));
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  };
   const roleBtn = $('hdr-role');
-  const showRole = (on) => { roleBtn.textContent = on ? (S.role === 'TUEUR' ? '🔪 Tueur' : '🙂 Survivant') : '👁 Rôle'; };
-  roleBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); showRole(true); });
-  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) roleBtn.addEventListener(ev, () => showRole(false));
-  roleBtn.addEventListener('contextmenu', (e) => e.preventDefault());
+  holdToReveal(roleBtn, (on) => {
+    const info = ROLES[myRole()];
+    roleBtn.textContent = on ? `${info.icon} ${info.name}` : '👁 Rôle';
+  });
+  holdToReveal($('role-hold'), (on) => {
+    $('role-hidden').hidden = on;
+    $('role-shown').hidden = !on;
+  });
+  $('role-ok').addEventListener('click', () => {
+    store.set('mp.revealed', revealKey());
+    $('role-overlay').hidden = true;
+  });
+
+  // Délai sur mesure : validé en quittant le champ ou avec Entrée
+  $('hp-delay-input').addEventListener('change', (e) => hostSetDelay(e.target.value).catch((err) => toast('Erreur : ' + err.message)));
+  $('hp-delay-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
 
   $('btn-leave').addEventListener('click', () => { if (confirm('Quitter la partie ?')) exitRoom(); });
   $('btn-host').addEventListener('click', () => {
@@ -810,7 +1007,9 @@ function bindUi() {
     if (action === 'validate') validateTask(id);
     else if (action === 'inspect') inspectTask(id);
     else if (action === 'remove-task') hostRemoveTask(id).catch((err) => toast('Erreur : ' + err.message));
-    else if (action === 'delay') update(roomRef(), { sabotageDelay: Number(el.dataset.delay) }).catch((err) => toast('Erreur : ' + err.message));
+    else if (action === 'delay') hostSetDelay(el.dataset.delay).catch((err) => toast('Erreur : ' + err.message));
+    else if (action === 'count') hostSetCount(el.dataset.key, Number(el.dataset.delta)).catch((err) => toast('Erreur : ' + err.message));
+    else if (action === 'kick') hostKick(el.dataset.uid).catch((err) => toast('Erreur : ' + err.message));
   });
 
   document.addEventListener('visibilitychange', () => {
@@ -866,7 +1065,7 @@ function boot() {
     // Reconnexion automatique après rechargement / écran verrouillé
     const saved = store.get('mp.session');
     if (saved?.code && (!codeParam || codeParam === saved.code)) {
-      try { await enterRoom(saved.code, saved.pseudo, saved.role); return; } catch { store.del('mp.session'); }
+      try { await enterRoom(saved.code, saved.pseudo); return; } catch { store.del('mp.session'); }
     }
     showScreen('home');
   });

@@ -23,19 +23,35 @@ Pour tester en local, servir le dossier en HTTP (par ex. `npx serve .`) plutôt 
 ## Déroulement d'une partie
 
 1. L'hôte crée la partie : un code à 4 lettres et un **QR code** s'affichent dans son panneau.
-2. Les joueurs scannent le QR code (le code est pré-rempli), saisissent un pseudo et choisissent **secrètement** leur rôle.
-3. L'hôte règle le délai de sabotage, ajuste la liste des tâches, puis lance la partie.
+2. Les joueurs scannent le QR code (le code est pré-rempli) et saisissent un pseudo. Ils arrivent dans le **salon d'attente**.
+3. L'hôte règle :
+   - le nombre de **tueurs** (au moins 1) et de **shérifs** ;
+   - le **délai de sabotage**, avec un raccourci (15 à 90 s) ou une valeur exacte de 1 à 3600 s ;
+   - la liste des tâches.
+
+   Il peut aussi retirer un joueur absent avec ✕.
+4. **Lancer la partie** tire les rôles au sort parmi tous les joueurs du salon. Chacun découvre le sien en maintenant l'écran appuyé.
+
+### Rôles
+
+| Rôle | Dans l'app | Dans la maison |
+| --- | --- | --- |
+| 🔪 Tueur | « Vérifier » sur une tâche verte programme un sabotage. S'il y a plusieurs tueurs, chacun connaît ses complices. | Élimine les survivants. |
+| 🤠 Shérif | Comme un survivant. | Survivant armé : peut neutraliser le tueur. |
+| 🙂 Survivant | Valide les tâches. | Survit. |
+
+Un joueur qui arrive après le lancement joue survivant.
 
 ### Mécaniques
 
 | Qui | Action | Effet |
 | --- | --- | --- |
 | Tout le monde | **Valider la tâche** (tâche grise ou rouge) | La tâche passe au vert. |
-| Survivant | **Vérifier** (tâche verte) | « Rien à signaler ». Sert de camouflage. |
+| Survivant / shérif | **Vérifier** (tâche verte) | « Rien à signaler ». Sert de camouflage. |
 | Tueur | **Vérifier** (tâche verte) | Programme un sabotage. La tâche reste verte pour tous ; un décompte discret (`⏱ 23 s`) apparaît seulement sur le téléphone du tueur. |
 | — | Fin du délai | La tâche devient rouge chez tout le monde : bandeau clignotant, son et vibration (Android). |
 
-- Les interfaces du tueur et du survivant sont **identiques**. Le rôle s'affiche en maintenant le bouton `👁 Rôle` appuyé.
+- Les interfaces des trois rôles sont **identiques**. Le rôle s'affiche en maintenant le bouton `👁 Rôle` appuyé.
 - Pendant le délai, la tâche est verte, donc personne ne peut la revalider : le sabotage aboutit forcément.
 - **Victoire des survivants** : automatique quand toutes les tâches sont vertes **et** qu'aucun sabotage n'est en attente. L'hôte peut aussi terminer la partie à tout moment (par exemple si les tueurs ont gagné « physiquement »).
 
@@ -44,9 +60,13 @@ Pour tester en local, servir le dossier en HTTP (par ex. `npx serve .`) plutôt 
 - **Heure serveur** : l'échéance `sabotageTriggerAt` est calculée avec `.info/serverTimeOffset`, ce qui rend le jeu insensible aux horloges désynchronisées des téléphones.
 - **Pas de client « arbitre »** : chaque téléphone calcule lui-même qu'une tâche est sabotée dès que l'échéance est passée. Le passage au rouge ne dépend donc pas du téléphone du tueur, qui peut être en veille. Le premier téléphone actif officialise ensuite le statut `sabotaged` dans la base via une transaction.
 - **Transactions** sur chaque action (valider, saboter, officialiser), ce qui évite les conflits quand deux joueurs agissent en même temps.
-- **Reconnexion automatique** : le salon, le pseudo et le rôle sont mémorisés dans le navigateur, et un rechargement ou un écran verrouillé ramène directement dans la partie. Pendant la partie, l'écran reste allumé quand le navigateur le permet (Wake Lock).
-- **Le rôle n'est jamais envoyé à Firebase** : il reste uniquement sur le téléphone du joueur.
-- **Limite connue** : `sabotageTriggerAt` est lisible dans la base. Un joueur expert, outils de développement ouverts, pourrait repérer un sabotage en attente. C'est acceptable pour une soirée entre amis.
+- **Reconnexion automatique** : le salon et le pseudo sont mémorisés dans le navigateur, et un rechargement ou un écran verrouillé ramène directement dans la partie. Pendant la partie, l'écran reste allumé quand le navigateur le permet (Wake Lock).
+- **Rôles privés** : le tirage est stocké dans `roles/{code}/{uid}`, un nœud séparé du salon. Les règles autorisent chaque joueur à lire **uniquement son propre rôle**.
+- **Limites connues** (acceptables pour une soirée entre amis) :
+  - le tirage est fait par le téléphone de l'hôte, donc un hôte expert, outils de développement ouverts, pourrait le voir ;
+  - `sabotageTriggerAt` est lisible dans la base, donc un joueur expert pourrait repérer un sabotage en attente.
+
+  Pour aller plus loin, il faudrait un serveur (Cloud Functions).
 
 ## Structure des données
 
@@ -60,6 +80,8 @@ Pour tester en local, servir le dossier en HTTP (par ex. `npx serve .`) plutôt 
       "status": "lobby | playing | finished",
       "endReason": "survivors | host",
       "sabotageDelay": 30,
+      "killers": 1,
+      "sheriffs": 1,
       "players": { "uid": { "pseudo": "Alice", "online": true } },
       "tasks": {
         "-Nx…": {
@@ -71,6 +93,13 @@ Pour tester en local, servir le dossier en HTTP (par ex. `npx serve .`) plutôt 
           "order": 0
         }
       }
+    }
+  },
+  "roles": {
+    "LOUV": {
+      "uid-alice": { "role": "TUEUR", "mates": ["Bob"] },
+      "uid-bob": { "role": "TUEUR", "mates": ["Alice"] },
+      "uid-chloe": { "role": "SHERIFF" }
     }
   }
 }
