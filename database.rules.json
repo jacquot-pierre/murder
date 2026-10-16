@@ -1,17 +1,33 @@
 {
   "rules": {
+    "config": {
+      ".read": false,
+      ".write": false
+    },
+
+    "members": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid && root.child('config').child('password').exists() && newData.val() === root.child('config').child('password').val()"
+      }
+    },
+
+    "access": {
+      ".read": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val()"
+    },
+
     "rooms": {
       "$code": {
-        ".read": "auth != null",
-        ".write": "auth != null && (!data.exists() || data.child('hostUid').val() === auth.uid)",
+        ".read": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val()",
+        ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && (!data.exists() || data.child('hostUid').val() === auth.uid)",
         ".validate": "$code.matches(/^[A-Z]{4}$/) && newData.hasChildren(['hostUid', 'status'])",
 
         "status": {
-          ".write": "auth != null && data.val() === 'playing' && newData.val() === 'finished'",
+          ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && data.val() === 'playing' && newData.val() === 'finished'",
           ".validate": "newData.val() === 'lobby' || newData.val() === 'playing' || newData.val() === 'finished'"
         },
         "endReason": {
-          ".write": "auth != null && data.parent().child('status').val() === 'playing' && newData.val() === 'survivors'"
+          ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && data.parent().child('status').val() === 'playing' && newData.val() === 'survivors'"
         },
         "sabotageDelay": {
           ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3600"
@@ -28,14 +44,14 @@
 
         "players": {
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val()",
             ".validate": "newData.child('pseudo').isString() && newData.child('pseudo').val().length <= 24"
           }
         },
 
         "tasks": {
           "$taskId": {
-            ".write": "auth != null && data.exists() && newData.exists() && root.child('rooms').child($code).child('status').val() === 'playing'",
+            ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && data.exists() && newData.exists() && root.child('rooms').child($code).child('status').val() === 'playing'",
             ".validate": "newData.hasChildren(['title', 'status']) && (newData.parent().parent().child('hostUid').val() === auth.uid || (newData.child('title').val() === data.child('title').val() && newData.child('location').val() === data.child('location').val() && newData.child('todo').val() === data.child('todo').val() && newData.child('sabotage').val() === data.child('sabotage').val()))",
             "status": {
               ".validate": "newData.val() === 'pending' || newData.val() === 'completed' || newData.val() === 'sabotaged'"
@@ -46,10 +62,10 @@
     },
 
     "catalog": {
-      ".read": "auth != null",
-      ".write": "auth != null && !data.exists()",
+      ".read": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val()",
+      ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && !data.exists()",
       "$id": {
-        ".write": "auth != null",
+        ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val()",
         ".validate": "newData.child('title').isString() && newData.child('title').val().length >= 1 && newData.child('title').val().length <= 60",
         "title": { ".validate": "newData.isString()" },
         "category": { ".validate": "newData.isString() && newData.val().length <= 40" },
@@ -64,9 +80,9 @@
 
     "roles": {
       "$code": {
-        ".write": "auth != null && root.child('rooms').child($code).child('hostUid').val() === auth.uid",
+        ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && root.child('rooms').child($code).child('hostUid').val() === auth.uid",
         "$uid": {
-          ".read": "auth != null && auth.uid === $uid",
+          ".read": "auth != null && auth.uid === $uid && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val()",
           ".validate": "newData.child('role').val() === 'TUEUR' || newData.child('role').val() === 'SHERIFF' || newData.child('role').val() === 'SURVIVANT'"
         }
       }

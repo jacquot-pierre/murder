@@ -40,6 +40,22 @@
     <span id="loading-text">Connexion…</span>
   </section>
 
+  <!-- ============ ÉCRAN : MOT DE PASSE ============ -->
+  <section id="screen-lock" hidden class="safe-top safe-bottom flex flex-1 flex-col justify-center gap-5 px-5">
+    <div class="text-center">
+      <div class="text-5xl">🔒</div>
+      <h1 class="mt-2 text-2xl font-black">Murder Party</h1>
+      <p class="mt-1 text-sm text-zinc-400">Accès réservé. Saisis le mot de passe de la soirée.</p>
+    </div>
+    <form id="lock-form" class="flex flex-col gap-3">
+      <input id="lock-input" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false"
+             class="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-center text-base outline-none focus:border-zinc-500"
+             placeholder="Mot de passe">
+      <button id="lock-btn" class="w-full rounded-xl bg-zinc-100 py-4 text-base font-black text-zinc-900 active:scale-[.98] disabled:opacity-50">Entrer</button>
+    </form>
+    <p id="lock-error" class="min-h-[1.25rem] text-center text-sm text-red-400"></p>
+  </section>
+
   <!-- ============ ÉCRAN : ACCUEIL ============ -->
   <section id="screen-home" hidden class="safe-top safe-bottom flex flex-1 flex-col gap-6 px-5">
     <header class="pt-10 text-center">
@@ -77,6 +93,11 @@
     </div>
 
     <p id="home-error" class="min-h-[1.25rem] text-center text-sm text-red-400"></p>
+
+    <button id="btn-catalog" type="button"
+            class="mt-auto w-full rounded-xl border border-zinc-800 bg-zinc-900 py-3 text-sm font-bold text-zinc-300 active:scale-[.98]">
+      📚 Catalogue de tâches
+    </button>
   </section>
 
   <!-- ============ ÉCRAN : SALON / JEU ============ -->
@@ -535,7 +556,7 @@ function taskList() {
 }
 
 function showScreen(name) {
-  for (const s of ['config', 'loading', 'home', 'room']) $('screen-' + s).hidden = s !== name;
+  for (const s of ['config', 'loading', 'lock', 'home', 'room']) $('screen-' + s).hidden = s !== name;
 }
 
 let toastTimer;
@@ -1263,6 +1284,7 @@ function bindUi() {
   });
 
   $('hp-catalog').addEventListener('click', openCatalog);
+  $('btn-catalog').addEventListener('click', openCatalog);
   $('edit-form').addEventListener('submit', (e) => saveEdit(e).catch((err) => toast('Erreur : ' + err.message)));
   $('edit-delete').addEventListener('click', () => deleteEdit().catch((err) => toast('Erreur : ' + err.message)));
   document.querySelectorAll('[data-close]').forEach((b) =>
@@ -1279,8 +1301,10 @@ function bindUi() {
 
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-action]');
-    if (!el || !S.code) return;
+    if (!el) return;
     const { action, id } = el.dataset;
+    // Le catalogue est accessible depuis l'accueil ; le reste n'a de sens que dans un salon.
+    if (!S.code && !action.startsWith('cat-')) return;
     if (action === 'validate') validateTask(id);
     else if (action === 'inspect') inspectTask(id);
     else if (action === 'info') openInfo(id);
@@ -1342,13 +1366,52 @@ function boot() {
     if (S.uid) return;
     S.uid = user.uid;
 
-    // Reconnexion automatique après rechargement / écran verrouillé
-    const saved = store.get('mp.session');
-    if (saved?.code && (!codeParam || codeParam === saved.code)) {
-      try { await enterRoom(saved.code, saved.pseudo); return; } catch { store.del('mp.session'); }
+    if (!(await hasAccess())) {
+      showScreen('lock');
+      $('lock-input').focus();
+      return;
     }
-    showScreen('home');
+    startApp(codeParam);
   });
+
+  $('lock-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pwd = $('lock-input').value;
+    if (!pwd) return;
+    $('lock-btn').disabled = true;
+    $('lock-error').textContent = '';
+    try {
+      // Les règles n'acceptent cette écriture que si le mot de passe est le bon (comparé à config/password).
+      await set(ref(db, `members/${S.uid}`), pwd);
+      $('lock-input').value = '';
+      startApp(codeParam);
+    } catch {
+      $('lock-error').textContent = 'Mot de passe incorrect.';
+      $('lock-input').select();
+    } finally {
+      $('lock-btn').disabled = false;
+    }
+  });
+}
+
+// Accès accordé ? On lit un nœud protégé : refusé tant que le mot de passe n'a pas été validé
+// (ou s'il a changé depuis).
+async function hasAccess() {
+  try {
+    await get(ref(db, 'access'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function startApp(codeParam) {
+  // Reconnexion automatique après rechargement / écran verrouillé
+  const saved = store.get('mp.session');
+  if (saved?.code && (!codeParam || codeParam === saved.code)) {
+    try { await enterRoom(saved.code, saved.pseudo); return; } catch { store.del('mp.session'); }
+  }
+  showScreen('home');
 }
 
 boot();

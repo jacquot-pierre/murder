@@ -9,6 +9,14 @@ Application web mobile temps réel pour un jeu grandeur nature façon *Among Us*
 3. **Règles** : onglet *Règles* de la Realtime Database → coller le contenu de [`database.rules.json`](database.rules.json) → *Publier*.
 4. **Authentification** → *Commencer* → *Sign-in method* → activer **Anonyme**.
 5. **Application Web** : *Paramètres du projet* → *Vos applications* → icône `</>` → copier l'objet `firebaseConfig` et le coller en haut du `<script type="module">` de `index.html`.
+6. **Mot de passe d'accès** : dans l'onglet *Données* de la Realtime Database, créer la clé `config/password` avec le mot de passe de la soirée comme valeur (texte).
+
+### Mot de passe d'accès
+
+- **Saisie :** l'app demande le mot de passe à la première ouverture, puis chaque téléphone le retient.
+- **Stockage :** il n'est **jamais** écrit dans le code, qui est public. Il n'existe que dans `config/password`, illisible par tous.
+- **Vérification :** quand un joueur saisit le mot de passe, l'app l'enregistre dans `members/{uid}`. Les règles n'acceptent cette écriture que si la valeur est identique à `config/password`, et toutes les autres règles (parties, rôles, catalogue) exigent ce passage.
+- **Changement :** modifier `config/password` dans la console oblige tout le monde à saisir le nouveau mot de passe.
 
 ## Déploiement
 
@@ -35,7 +43,7 @@ Pour tester en local, servir le dossier en HTTP (par ex. `npx serve .`) plutôt 
 ### Catalogue de tâches
 
 - **Stockage :** le catalogue est enregistré dans Firebase (`/catalog`) et **partagé par toutes les parties**. Au tout premier lancement, il est rempli avec les 24 tâches de `DEFAULT_CATALOG` (dans `index.html`).
-- **Gestion :** l'hôte l'ouvre avec **📚 Gérer le catalogue de tâches**. Il peut :
+- **Gestion :** n'importe quel joueur l'ouvre depuis l'accueil avec **📚 Catalogue de tâches**, sans créer de partie. L'hôte peut aussi l'ouvrir depuis son panneau. On peut :
   - **décocher** une tâche pour l'exclure du tirage, par exemple si le matériel n'est pas installé ce soir-là ;
   - **toucher** une tâche pour modifier son nom, sa catégorie, son lieu, « À faire » et « Comment la saboter », ou pour la supprimer définitivement ;
   - ajouter une tâche avec **+ Nouvelle tâche**.
