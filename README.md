@@ -90,7 +90,11 @@ Le bouton **⚡** est visible par tout le monde pendant la partie. Un survivant 
 
 - Les interfaces des trois rôles sont **identiques**. Le rôle s'affiche en maintenant le bouton `👁 Rôle` appuyé.
 - Pendant le délai, la tâche est verte, donc personne ne peut la revalider : le sabotage aboutit forcément.
-- **Victoire des survivants** : automatique quand toutes les tâches sont vertes **et** qu'aucun sabotage n'est en attente. L'hôte peut aussi terminer la partie à tout moment (par exemple si les tueurs ont gagné « physiquement »).
+- **Victoire des survivants** : quand toutes les tâches sont vertes, un bandeau « 🏁 Victoire dans X s » démarre. Le délai est réglable par l'hôte (5 s par défaut, 0 pour une victoire immédiate).
+  - **Sans sabotage :** si aucun sabotage n'est en attente à la fin du délai, les survivants gagnent.
+  - **Avec sabotage :** le délai laisse aux tueurs le temps de resaboter une tâche ou d'éliminer le dernier survivant. Si un sabotage est programmé pendant ce temps, la victoire n'est pas prononcée, et le bandeau affiche « Victoire imminente… » sans trahir le tueur.
+  - **Après une revalidation :** le compte à rebours repart.
+  - **Fin de partie par l'hôte :** il peut terminer la partie à tout moment, par exemple si les tueurs ont gagné « physiquement ».
 
 ## Choix techniques
 
@@ -121,6 +125,7 @@ Le bouton **⚡** est visible par tout le monde pendant la partie. Un survivant 
       "killers": 1,
       "sheriffs": 1,
       "taskCount": 8,
+      "victoryDelay": 5,
       "powerSettings": { "startCooldown": 120, "cooldown": 60, "eyes": { "enabled": true, "duration": 10, "maxUses": 2 } },
       "power": { "uses": { "eyes": 1 }, "lastEnd": 1760550010000, "active": { "type": "eyes", "at": 1760550000000, "until": 1760550010000 } },
       "players": { "uid": { "pseudo": "Alice", "online": true } },

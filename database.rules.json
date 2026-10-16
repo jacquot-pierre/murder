@@ -38,6 +38,9 @@
         "sheriffs": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
         },
+        "victoryDelay": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 600"
+        },
         "taskCount": {
           ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50"
         },

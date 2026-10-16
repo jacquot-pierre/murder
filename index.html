@@ -136,6 +136,10 @@
         🔇 Touche l'écran pour activer le son et la vibration
       </div>
 
+      <div id="victory-banner" hidden class="bg-emerald-500 px-3 py-2 text-center font-black text-zinc-950">
+        🏁 Toutes les tâches sont faites ! <span id="vb-text"></span>
+      </div>
+
       <div id="power-banner" hidden class="bg-violet-700 px-3 py-2 text-center text-white">
         <div class="font-black tracking-wide"><span id="pb-icon"></span> <span id="pb-title"></span> · <span id="pb-left" class="font-mono"></span></div>
         <div id="pb-text" class="text-xs font-semibold opacity-90"></div>
@@ -229,6 +233,16 @@
             <span class="text-sm text-zinc-400">s</span>
             <span id="hp-delay-human" class="ml-auto text-xs text-zinc-500"></span>
           </div>
+        </div>
+
+        <div id="hp-victory">
+          <div class="mb-2 text-sm text-zinc-400">🏁 Délai avant la victoire</div>
+          <div class="flex items-center gap-2">
+            <input data-setting="victoryDelay" data-min="0" data-max="600" type="number" inputmode="numeric"
+                   class="w-24 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-center font-mono text-base outline-none focus:border-zinc-500">
+            <span class="text-sm text-zinc-400">s</span>
+          </div>
+          <p class="mt-2 text-xs text-zinc-500">Une fois toutes les tâches validées, les tueurs ont encore ce délai pour resaboter une tâche ou éliminer le dernier survivant.</p>
         </div>
 
         <div id="hp-powers">
@@ -477,6 +491,7 @@ const POWERS = [
 const POWER_BY_ID = Object.fromEntries(POWERS.map((p) => [p.id, p]));
 
 const DEFAULT_TASK_COUNT = 8;
+const DEFAULT_VICTORY_DELAY = 5;
 const MAX_TASK_COUNT = 50;
 
 // Catalogue initial : copié dans Firebase (/catalog) la première fois, puis géré depuis l'app.
@@ -1021,11 +1036,13 @@ function buildPowerSettingsUi() {
     </div>`).join('');
 }
 
-function renderPowerSettings() {
+// Valeurs des champs [data-setting] du panneau hôte (pouvoirs, délai avant victoire)
+function renderSettings() {
   const ps = powerSettings();
-  document.querySelectorAll('#hp-powers [data-setting]').forEach((el) => {
+  document.querySelectorAll('#host-panel [data-setting]').forEach((el) => {
     if (el === document.activeElement) return;
-    const v = el.dataset.setting.split('/').slice(1).reduce((o, k) => o?.[k], ps);
+    const [root, ...path] = el.dataset.setting.split('/');
+    const v = root === 'powerSettings' ? path.reduce((o, k) => o?.[k], ps) : victoryDelay();
     if (el.type === 'checkbox') el.checked = !!v;
     else el.value = v;
   });
@@ -1113,10 +1130,25 @@ function commitSabotages(tasks, now) {
   }
 }
 
-// Victoire des survivants : toutes les tâches vertes ET aucun sabotage en attente.
-function checkVictory(tasks) {
+// Délai avant la victoire : compté depuis la dernière validation (une revalidation le relance)
+const victoryDelay = () => S.room?.victoryDelay ?? DEFAULT_VICTORY_DELAY;
+const victoryAt = (tasks) => Math.max(0, ...tasks.map((t) => t.completedAt || 0)) + victoryDelay() * 1000;
+
+// Bandeau de fin imminente : affiché dès que tout est vert à l'écran. Un sabotage en attente
+// ne le fait pas disparaître (« Victoire imminente… ») pour ne pas trahir le tueur.
+function renderVictoryBanner(tasks, now) {
+  const allGreen = S.room?.status === 'playing' && tasks.length > 0 && tasks.every((t) => effStatus(t, now) === 'completed');
+  $('victory-banner').hidden = !allGreen;
+  if (!allGreen) return;
+  const left = Math.ceil((victoryAt(tasks) - now) / 1000);
+  $('vb-text').textContent = left > 0 ? `Victoire dans ${left} s` : 'Victoire imminente…';
+}
+
+// Victoire des survivants : toutes les tâches vertes, aucun sabotage en attente, et délai écoulé.
+function checkVictory(tasks, now) {
   if (S.finishing || S.pendingTx > 0 || !tasks.length) return;
   if (!tasks.every((t) => t.status === 'completed' && !t.sabotageTriggerAt)) return;
+  if (now < victoryAt(tasks)) return;
   S.finishing = true;
   update(roomRef(), { status: 'finished', endReason: 'survivors' })
     .catch(() => {})
@@ -1433,7 +1465,8 @@ function renderHostPanel(tasks) {
   const { killers, sheriffs } = roleCounts();
   $('hp-roles').hidden = st === 'playing';
   $('hp-powers').hidden = st === 'playing';
-  renderPowerSettings();
+  $('hp-victory').hidden = st === 'playing';
+  renderSettings();
   $('hp-killers').textContent = killers;
   $('hp-sheriffs').textContent = sheriffs;
   $('hp-roles-summary').textContent = rolesSummary();
@@ -1548,7 +1581,8 @@ function tick() {
   // Le navigateur bloque son et vibration tant que la page n'a pas été touchée (ex. après un rechargement)
   $('audio-banner').hidden = audioCtx?.state === 'running';
   renderPowerEffect(now);
-  const sig = tasks.map((t) => t.id + ':' + effStatus(t, now)).join('|');
+  renderVictoryBanner(tasks, now);
+  const sig =tasks.map((t) => t.id + ':' + effStatus(t, now)).join('|');
   if (S.dirty || sig !== S.lastSig) {
     S.dirty = false;
     S.lastSig = sig;
@@ -1558,7 +1592,7 @@ function tick() {
   renderPowerSheet(now);
   if (S.room.status === 'playing') {
     commitSabotages(tasks, now);
-    checkVictory(tasks);
+    checkVictory(tasks, now);
   }
 }
 
