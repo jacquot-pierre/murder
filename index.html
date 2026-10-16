@@ -177,16 +177,18 @@
           </div>
         </div>
 
-        <div>
-          <div class="mb-2 text-sm text-zinc-400">Tâches (<span id="hp-task-count">0</span>)</div>
-          <ul id="hp-tasks" class="flex flex-col gap-1"></ul>
-          <form id="hp-add" class="mt-2 grid grid-cols-[1fr_1fr_auto] gap-1">
-            <input id="hp-add-title" maxlength="40" placeholder="Tâche" autocomplete="off"
-                   class="min-w-0 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500">
-            <input id="hp-add-loc" maxlength="40" placeholder="Lieu" autocomplete="off"
-                   class="min-w-0 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500">
-            <button class="rounded-lg bg-zinc-100 px-4 font-black text-zinc-900" aria-label="Ajouter">+</button>
-          </form>
+        <div id="hp-tasks-setup">
+          <div class="mb-2 text-sm text-zinc-400">Tâches tirées au sort au lancement</div>
+          <div class="flex items-center justify-between rounded-lg bg-zinc-800/70 py-1 pl-3 pr-1">
+            <span class="text-sm">📋 Tâches par partie</span>
+            <div class="flex items-center">
+              <button type="button" data-action="count" data-key="taskCount" data-delta="-1" class="h-9 w-9 rounded-md text-lg active:bg-zinc-700">−</button>
+              <span id="hp-task-count" class="w-8 text-center font-mono font-bold">8</span>
+              <button type="button" data-action="count" data-key="taskCount" data-delta="1" class="h-9 w-9 rounded-md text-lg active:bg-zinc-700">+</button>
+            </div>
+          </div>
+          <p id="hp-tasks-summary" class="mt-2 text-xs text-zinc-500"></p>
+          <button id="hp-catalog" type="button" class="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-800 py-3 text-sm font-bold active:scale-[.98]">📚 Gérer le catalogue de tâches</button>
         </div>
 
         <div class="grid grid-cols-2 gap-2">
@@ -224,6 +226,81 @@
   </div>
 </div>
 
+<!-- Détail d'une tâche (bouton ⓘ) -->
+<div id="info-overlay" hidden class="fixed inset-0 z-40 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+  <div class="safe-bottom max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-zinc-700 bg-zinc-900 p-5 sm:rounded-3xl">
+    <div class="flex items-start gap-3">
+      <div class="min-w-0 flex-1">
+        <h2 id="info-title" class="text-xl font-black leading-tight"></h2>
+        <p id="info-location" class="mt-1 text-sm text-zinc-400"></p>
+      </div>
+      <button type="button" data-close="info-overlay" class="h-9 w-9 shrink-0 rounded-lg bg-zinc-800 text-sm" aria-label="Fermer">✕</button>
+    </div>
+    <div class="mt-4 rounded-2xl bg-zinc-800/70 p-4">
+      <div class="text-xs font-bold uppercase tracking-wider text-emerald-400">📋 À faire</div>
+      <p id="info-todo" class="mt-1 whitespace-pre-line text-sm leading-relaxed"></p>
+    </div>
+    <div class="mt-2 rounded-2xl bg-zinc-800/70 p-4">
+      <div class="text-xs font-bold uppercase tracking-wider text-red-400">🔪 Comment la saboter</div>
+      <p id="info-sabotage" class="mt-1 whitespace-pre-line text-sm leading-relaxed"></p>
+    </div>
+    <button type="button" data-close="info-overlay" class="mt-4 w-full rounded-xl bg-zinc-100 py-3 font-black text-zinc-900">Fermer</button>
+  </div>
+</div>
+
+<!-- Catalogue des tâches (hôte) : partagé par toutes les parties -->
+<div id="catalog-overlay" hidden class="fixed inset-0 z-40 flex flex-col bg-zinc-950">
+  <header class="safe-top border-b border-zinc-800">
+    <div class="mx-auto flex max-w-md items-center gap-3 px-4 py-3">
+      <div class="min-w-0 flex-1">
+        <h2 class="text-lg font-black">📚 Catalogue de tâches</h2>
+        <p id="cat-summary" class="text-xs text-zinc-400"></p>
+      </div>
+      <button type="button" data-close="catalog-overlay" class="h-9 rounded-lg bg-zinc-800 px-3 text-sm font-bold">Fermer</button>
+    </div>
+  </header>
+  <div class="flex-1 overflow-y-auto">
+    <div class="mx-auto max-w-md p-4">
+      <p class="mb-3 text-xs text-zinc-500">Partagé par toutes les parties. Décoche une tâche pour l'exclure du tirage (matériel absent…). Touche une tâche pour la modifier.</p>
+      <div id="cat-list" class="flex flex-col gap-4"></div>
+    </div>
+  </div>
+  <footer class="safe-bottom border-t border-zinc-800">
+    <div class="mx-auto max-w-md px-4 pt-3">
+      <button type="button" data-action="cat-new" class="w-full rounded-xl bg-zinc-100 py-3.5 font-black text-zinc-900">+ Nouvelle tâche</button>
+    </div>
+  </footer>
+</div>
+
+<!-- Édition d'une tâche du catalogue -->
+<div id="edit-overlay" hidden class="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+  <form id="edit-form" class="safe-bottom max-h-[95vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-zinc-700 bg-zinc-900 p-5 sm:rounded-3xl">
+    <div class="flex items-center justify-between">
+      <h2 id="edit-heading" class="text-lg font-black">Nouvelle tâche</h2>
+      <button type="button" data-close="edit-overlay" class="h-9 w-9 rounded-lg bg-zinc-800 text-sm" aria-label="Fermer">✕</button>
+    </div>
+    <div class="mt-4 flex flex-col gap-3">
+      <label class="block"><span class="text-sm text-zinc-400">Nom *</span>
+        <input id="edit-title" maxlength="60" required autocomplete="off" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500"></label>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="block"><span class="text-sm text-zinc-400">Catégorie</span>
+          <input id="edit-category" maxlength="40" list="cat-categories" autocomplete="off" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500"></label>
+        <label class="block"><span class="text-sm text-zinc-400">Lieu</span>
+          <input id="edit-location" maxlength="40" autocomplete="off" placeholder="Ex : Salon" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500"></label>
+      </div>
+      <datalist id="cat-categories"></datalist>
+      <label class="block"><span class="text-sm text-zinc-400">📋 À faire</span>
+        <textarea id="edit-todo" maxlength="600" rows="3" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500"></textarea></label>
+      <label class="block"><span class="text-sm text-zinc-400">🔪 Comment la saboter</span>
+        <textarea id="edit-sabotage" maxlength="600" rows="3" class="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-zinc-500"></textarea></label>
+    </div>
+    <div class="mt-5 grid grid-cols-2 gap-2">
+      <button type="button" id="edit-delete" class="rounded-xl border border-red-900 bg-red-950 py-3 font-bold text-red-300">Supprimer</button>
+      <button type="submit" class="rounded-xl bg-zinc-100 py-3 font-black text-zinc-900">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
 <!-- Fin de partie -->
 <div id="end-overlay" hidden class="fixed inset-0 z-30 grid place-items-center bg-black/80 p-6 backdrop-blur-sm">
   <div class="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-900 p-6 text-center">
@@ -239,7 +316,7 @@
 
 <!-- Notification discrète -->
 <div id="toast" hidden
-     class="fixed bottom-8 left-1/2 z-40 max-w-[90vw] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-900/95 px-4 py-2 text-center text-sm shadow-xl"></div>
+     class="fixed bottom-8 left-1/2 z-[60] max-w-[90vw] -translate-x-1/2 rounded-full border border-zinc-700 bg-zinc-900/95 px-4 py-2 text-center text-sm shadow-xl"></div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
@@ -284,13 +361,89 @@ const ROLES = {
     desc: () => 'Réalise les tâches et valide-les sur ton téléphone. Méfie-toi de tout le monde.',
   },
 };
-const DEFAULT_TASKS = [
-  { title: 'Multiprise', location: 'Salon' },
-  { title: 'Coffre', location: 'Entrée' },
-  { title: 'Horloge', location: 'Cuisine' },
-  { title: 'Pesée', location: 'Arrière-cuisine' },
-  { title: 'Cartes', location: 'Salle de bain' },
-];
+const DEFAULT_TASK_COUNT = 8;
+const MAX_TASK_COUNT = 50;
+
+// Catalogue initial : copié dans Firebase (/catalog) la première fois, puis géré depuis l'app.
+const CAT_OBJ = 'Manipulations & objets';
+const CAT_DECOR = 'Décor & murs';
+const CAT_ELEC = 'Électrique & mécanique';
+const CAT_DOSE = 'Dosage & mesure';
+const CAT_TIME = 'Règles visuelles & temps';
+const DEFAULT_CATALOG = [
+  ['coffre-cles', CAT_OBJ, 'Le coffre aux clés', '',
+    'Essayer les clés du trousseau pour ouvrir le coffre, puis le laisser ouvert.',
+    'Refermer le coffre à clé et mélanger le trousseau.'],
+  ['mot-allumettes', CAT_OBJ, 'Le mot en allumettes', '',
+    'Former un mot imposé (ex. SOS, FEU ou CLE) sur la table avec des allumettes en bois.',
+    'Retirer ou déplacer une allumette pour rendre une lettre illisible.'],
+  ['mot-scrabble', CAT_OBJ, 'Le mot au Scrabble', '',
+    'Composer un mot donné (ex. FUSIBLE) avec des lettres en vrac.',
+    'Retourner une lettre face cachée ou en échanger deux.'],
+  ['livres', CAT_OBJ, "L'alignement de livres", '',
+    "Ranger 5 livres précis par ordre alphabétique de titre (ou d'auteur).",
+    "Inverser simplement deux livres sur l'étagère."],
+  ['marque-page', CAT_OBJ, 'Le marque-page', '',
+    "Glisser un signet ou un carton à une page précise d'un gros livre (ex. page 42).",
+    'Retirer le marque-page ou le décaler de plusieurs chapitres.'],
+  ['couverts', CAT_OBJ, "L'alignement de couverts", '',
+    "Disposer 3 couverts dans un ordre strict : fourchette à gauche, couteau au milieu (tranchant vers l'assiette), cuillère à droite.",
+    "Inverser la cuillère et la fourchette, ou tourner le fil du couteau vers l'extérieur."],
+  ['gobelets', CAT_OBJ, 'La pyramide de gobelets', '',
+    'Monter une mini-pyramide de 3 gobelets (2 en bas, 1 en haut) ou empiler un nombre exact de gobelets.',
+    "Faire tomber le gobelet du sommet ou écraser la pile d'une pichenette."],
+  ['stylos', CAT_OBJ, 'Le pot à stylos bicolore', '',
+    'Mettre les stylos bleus pointe vers le haut et les noirs pointe vers le bas.',
+    "En retourner un ou deux d'un geste discret."],
+  ['chaises', CAT_OBJ, 'Les chaises de table', '',
+    "Rentrer parfaitement sous la table les 4 chaises marquées d'une gommette.",
+    "En tirer une de 10 cm vers l'arrière en passant à côté."],
+  ['chateau-cartes', CAT_OBJ, 'Le château de cartes express', '',
+    "Monter un petit toit de 2 cartes appuyées l'une contre l'autre.",
+    "Souffler dessus ou effleurer la table pour le faire s'effondrer."],
+  ['pieces', CAT_OBJ, 'Le code aux pièces', '',
+    'Aligner 4 pièces selon une règle précise (ex. Pile – Face – Pile – Pile).',
+    "Retourner une seule pièce d'une pichenette."],
+  ['coussin', CAT_OBJ, 'Le coussin du canapé', '',
+    'Mettre un coussin précis debout au milieu du canapé (ou côté motif visible).',
+    'Le coucher à plat ou le retourner côté uni.'],
+  ['post-it', CAT_DECOR, 'Le Post-it repositionné', '',
+    'Déplacer un Post-it collé au mur de la zone A (tracée au crayon) vers la zone B.',
+    'Décoller le Post-it et le recoller en zone A, de travers ou par terre.'],
+  ['rideau', CAT_DECOR, 'Le rideau', 'Chambre',
+    "Ouvrir (ou fermer) entièrement le rideau d'une fenêtre désignée.",
+    'Tirer le rideau dans la position inverse en passant.'],
+  ['papier-toilette', CAT_DECOR, 'Le rouleau de papier toilette', 'Toilettes',
+    "Plier l'extrémité de la feuille en pointe, style hôtel.",
+    'Déplier la pointe ou arracher la feuille.'],
+  ['noeud', CAT_DECOR, 'Le nœud sur la poignée', '',
+    "Faire un nœud simple autour d'une poignée de porte avec un lacet ou un bout de laine.",
+    'Tirer sur un brin pour défaire le nœud.'],
+  ['generateur', CAT_ELEC, 'Le disjoncteur / générateur', '',
+    'Allumer une lampe précise ou brancher la multiprise étiquetée « Générateur ».',
+    "Éteindre l'interrupteur ou débrancher la prise."],
+  ['cadenas', CAT_ELEC, 'Le cadenas à combinaison', '',
+    "Aligner les molettes d'un cadenas (ou antivol) sur la combinaison affichée au mur.",
+    'Faire tourner une seule molette pour fausser la combinaison.'],
+  ['des', CAT_ELEC, 'La combinaison de dés', '',
+    'Aligner 3 dés sur une combinaison précise (ex. trois 6 ou une somme imposée).',
+    "Donner une chiquenaude à l'un des dés pour changer sa face."],
+  ['carafe', CAT_DOSE, "Le réservoir d'eau", '',
+    "Remplir une carafe au robinet pile jusqu'au trait des 500 ml tracé au feutre.",
+    "Vider une gorgée ou ajouter de l'eau pour fausser le niveau."],
+  ['pesee', CAT_DOSE, 'La pesée', '',
+    'Mettre des cailloux ou des bouchons dans un bol sur la balance de cuisine pour atteindre pile 300 g.',
+    'Retirer ou ajouter un élément dans le bol.'],
+  ['figurine', CAT_TIME, 'La figurine et la boîte', '',
+    'Piocher une carte et placer la figurine selon sa valeur : 1 dedans, 2 à droite, 3 à gauche, 4 dessus, 5 derrière, 6 devant.',
+    'Déplacer la figurine sur une mauvaise position.'],
+  ['main', CAT_TIME, 'La main articulée', '',
+    'Placer les doigts selon la dizaine des minutes en cours : 00 majeur levé, 10 pouce levé, 20 cornes rock, 30 salut vulcain, 40 shocker, 50 téléphone.',
+    'Modifier la position des doigts.'],
+  ['horloge', CAT_TIME, "L'horloge murale", '',
+    "Régler les aiguilles sur la prochaine demi-heure pile (ex. 15 h 00 s'il est 14 h 42).",
+    'Décaler la grande aiguille de 10 ou 15 minutes.'],
+].map(([id, category, title, location, todo, sabotage], order) => ({ id, category, title, location, todo, sabotage, enabled: true, order }));
 
 // =====================================================================
 //  ÉTAT LOCAL
@@ -305,7 +458,10 @@ const S = {
   room: null,          // dernier instantané du salon
   unsub: null,
   unsubRole: null,
-  offset: 0,           // décalage horloge locale → horloge serveur (ms)
+  catalog: null,       // catalogue partagé { id: tâche } — chargé uniquement chez l'hôte
+  unsubCatalog: null,
+  editId: null,        // tâche du catalogue en cours d'édition (null = nouvelle)
+  offset: 0,          // décalage horloge locale → horloge serveur (ms)
   dirty: true,
   lastSig: '',
   lastStatus: null,
@@ -335,7 +491,7 @@ const taskRef = (id) => ref(db, `rooms/${S.code}/tasks/${id}`);
 const isHost = () => !!S.room && S.room.hostUid === S.uid;
 // Sans rôle attribué (arrivée après le lancement), on joue survivant.
 const myRole = () => S.myRole?.role || 'SURVIVANT';
-const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
+const plural = (n, words) => `${n} ${n > 1 ? words.replace(/(\S+)/g, '$1s') : words}`;
 
 function fmtDelay(s) {
   s = Number(s) || 0;
@@ -458,18 +614,14 @@ async function createRoom() {
     let code = null;
     for (let i = 0; i < 15 && !code; i++) {
       const c = randomCode();
-      const tasks = {};
-      DEFAULT_TASKS.forEach((t, idx) => {
-        const id = push(ref(db, `rooms/${c}/tasks`)).key;
-        tasks[id] = { id, title: t.title, location: t.location, status: 'pending', order: idx };
-      });
       // Transaction : n'écrit le salon que si ce code n'existe pas déjà.
+      // Les tâches seront tirées au sort dans le catalogue au lancement.
       const res = await runTransaction(ref(db, `rooms/${c}`), (cur) => {
         if (cur !== null) return; // code déjà pris → abandon
         return {
           code: c, host: h.pseudo, hostUid: S.uid, status: 'lobby',
           sabotageDelay: DEFAULT_DELAY, killers: DEFAULT_KILLERS, sheriffs: DEFAULT_SHERIFFS,
-          createdAt: Date.now(), tasks,
+          taskCount: DEFAULT_TASK_COUNT, createdAt: Date.now(),
         };
       });
       if (res.committed) code = c;
@@ -544,6 +696,7 @@ async function registerPresence() {
 function stopListeners() {
   if (S.unsub) { S.unsub(); S.unsub = null; }
   if (S.unsubRole) { S.unsubRole(); S.unsubRole = null; }
+  if (S.unsubCatalog) { S.unsubCatalog(); S.unsubCatalog = null; S.catalog = null; }
 }
 
 // Quitter volontairement retire le joueur du salon (il ne recevra pas de rôle au prochain tirage).
@@ -559,8 +712,7 @@ function exitRoom() {
   S.myRole = null;
   store.del('mp.session');
   keepAwake(false);
-  $('end-overlay').hidden = true;
-  $('role-overlay').hidden = true;
+  for (const id of ['end-overlay', 'role-overlay', 'info-overlay', 'catalog-overlay', 'edit-overlay']) $(id).hidden = true;
   showScreen('home');
 }
 
@@ -643,24 +795,30 @@ function checkVictory(tasks) {
 // =====================================================================
 //  ACTIONS DE L'HÔTE
 // =====================================================================
-function resetTasksUpdates(base) {
-  for (const t of taskList()) {
-    base[`tasks/${t.id}/status`] = 'pending';
-    base[`tasks/${t.id}/sabotageTriggerAt`] = null;
-    base[`tasks/${t.id}/completedAt`] = null;
-    base[`tasks/${t.id}/sabotagedAt`] = null;
-  }
-  return base;
-}
-
 const roleCounts = () => ({
   killers: S.room?.killers ?? DEFAULT_KILLERS,
   sheriffs: S.room?.sheriffs ?? DEFAULT_SHERIFFS,
+  taskCount: S.room?.taskCount ?? DEFAULT_TASK_COUNT,
 });
+const COUNT_LIMITS = { killers: [1, 20], sheriffs: [0, 20], taskCount: [1, MAX_TASK_COUNT] };
 
-// Tirage au sort des rôles parmi tous les joueurs du salon, puis lancement.
+// Tirage au sort des tâches (catalogue) et des rôles (joueurs du salon), puis lancement.
 async function hostStart() {
-  if (!taskList().length) return toast('Ajoute au moins une tâche.');
+  if (!S.catalog) return toast('Catalogue en cours de chargement, réessaie.');
+  const pool = catalogList().filter((c) => c.enabled !== false);
+  if (!pool.length) return toast('Aucune tâche active dans le catalogue.');
+  const { taskCount } = roleCounts();
+  const picked = shuffle(pool).slice(0, taskCount);
+  if (picked.length < taskCount) toast(`Seulement ${plural(picked.length, 'tâche active')} dans le catalogue.`, 4000);
+  const tasks = {};
+  picked.forEach((c, order) => {
+    const id = push(ref(db, `rooms/${S.code}/tasks`)).key;
+    tasks[id] = {
+      id, catalogId: c.id, title: c.title, location: c.location || '',
+      todo: c.todo || '', sabotage: c.sabotage || '', status: 'pending', order,
+    };
+  });
+
   const list = players();
   const { killers, sheriffs } = roleCounts();
   if (killers < 1) return toast('Il faut au moins 1 tueur.');
@@ -682,20 +840,21 @@ async function hostStart() {
   });
   // Les rôles d'abord, le changement de statut ensuite : chacun connaît son rôle quand la partie démarre.
   await set(ref(db, `roles/${S.code}`), roles);
-  await update(roomRef(), resetTasksUpdates({ status: 'playing', endReason: null, startedAt: serverTimestamp() }));
+  await update(roomRef(), { tasks, status: 'playing', endReason: null, startedAt: serverTimestamp() });
   S.hostOpen = false;
 }
 
 async function hostReset(skipConfirm = false) {
-  if (!skipConfirm && !confirm('Réinitialiser ? Toutes les tâches repassent à « à faire » et tout le monde revient au salon d\'attente. Les rôles seront retirés au sort.')) return;
-  await update(roomRef(), resetTasksUpdates({ status: 'lobby', endReason: null }));
+  if (!skipConfirm && !confirm('Retour au salon d\'attente ? Les tâches et les rôles seront tirés à nouveau au prochain lancement.')) return;
+  await update(roomRef(), { status: 'lobby', endReason: null, tasks: null });
   await remove(ref(db, `roles/${S.code}`));
 }
 
 async function hostSetCount(key, delta) {
-  const counts = roleCounts();
-  const next = Math.max(key === 'killers' ? 1 : 0, Math.min(20, counts[key] + delta));
-  if (next !== counts[key]) await update(roomRef(), { [key]: next });
+  const cur = roleCounts()[key];
+  const [min, max] = COUNT_LIMITS[key];
+  const next = Math.max(min, Math.min(max, cur + delta));
+  if (next !== cur) await update(roomRef(), { [key]: next });
 }
 
 async function hostSetDelay(value) {
@@ -719,21 +878,125 @@ async function hostEnd() {
   await update(roomRef(), { status: 'finished', endReason: 'host' });
 }
 
-async function hostAddTask(e) {
-  e.preventDefault();
-  const title = $('hp-add-title').value.trim();
-  const loc = $('hp-add-loc').value.trim();
-  if (!title) return $('hp-add-title').focus();
-  const r = push(ref(db, `rooms/${S.code}/tasks`));
-  await set(r, { id: r.key, title, location: loc, status: 'pending', order: Date.now() });
-  $('hp-add').reset();
-  $('hp-add-title').focus();
+// =====================================================================
+//  CATALOGUE DE TÂCHES (partagé par toutes les parties, géré par l'hôte)
+// =====================================================================
+function catalogList() {
+  return Object.entries(S.catalog || {})
+    .map(([id, c]) => ({ ...c, id }))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
-async function hostRemoveTask(id) {
+// Abonnement au catalogue, uniquement chez l'hôte. Premier lancement : copie du catalogue par défaut.
+let catalogSeeding = false;
+function ensureCatalog() {
+  if (S.unsubCatalog) return;
+  S.unsubCatalog = onValue(ref(db, 'catalog'), (s) => {
+    S.catalog = s.val() || {};
+    // Une seule tentative par session : en cas de refus, pas de boucle de réessais.
+    if (!s.exists() && !catalogSeeding) {
+      catalogSeeding = true;
+      const seed = Object.fromEntries(DEFAULT_CATALOG.map(({ id, ...c }) => [id, c]));
+      runTransaction(ref(db, 'catalog'), (cur) => (cur === null ? seed : undefined))
+        .catch((e) => toast('Création du catalogue impossible : ' + e.message, 5000));
+    }
+    S.dirty = true;
+    renderCatalog();
+    tick();
+  });
+}
+
+function renderCatalog() {
+  if ($('catalog-overlay').hidden) return;
+  const list = catalogList();
+  const active = list.filter((c) => c.enabled !== false).length;
+  $('cat-summary').textContent = `${plural(list.length, 'tâche')} · ${active} au tirage`;
+  const groups = new Map();
+  for (const c of list) {
+    const k = c.category || 'Autres';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(c);
+  }
+  $('cat-categories').innerHTML = [...groups.keys()].map((k) => `<option value="${esc(k)}">`).join('');
+  $('cat-list').innerHTML = [...groups].map(([name, items]) => `
+    <section>
+      <h3 class="mb-1 text-xs font-bold uppercase tracking-wider text-zinc-500">${esc(name)}</h3>
+      <ul class="flex flex-col gap-1">
+        ${items.map((c) => `
+          <li class="flex items-center gap-1 rounded-lg bg-zinc-900 pr-1 ${c.enabled === false ? 'opacity-50' : ''}">
+            <button type="button" data-action="cat-toggle" data-id="${esc(c.id)}" class="grid h-11 w-11 shrink-0 place-items-center" aria-label="Inclure dans le tirage">
+              <span class="grid h-5 w-5 place-items-center rounded border ${c.enabled === false ? 'border-zinc-600' : 'border-emerald-400 bg-emerald-500 text-zinc-950'} text-xs font-black">${c.enabled === false ? '' : '✓'}</span>
+            </button>
+            <button type="button" data-action="cat-edit" data-id="${esc(c.id)}" class="min-w-0 flex-1 py-2 text-left">
+              <div class="truncate text-sm font-semibold">${esc(c.title)}</div>
+              <div class="truncate text-xs text-zinc-500">${c.location ? '📍 ' + esc(c.location) : 'Lieu non précisé'}</div>
+            </button>
+            <span class="px-2 text-zinc-600">✎</span>
+          </li>`).join('')}
+      </ul>
+    </section>`).join('') || '<p class="py-10 text-center text-zinc-500">Catalogue vide.</p>';
+}
+
+function openCatalog() {
+  ensureCatalog();
+  $('catalog-overlay').hidden = false;
+  renderCatalog();
+}
+
+function openEdit(id) {
+  const c = id ? S.catalog?.[id] : null;
+  S.editId = id || null;
+  $('edit-heading').textContent = c ? 'Modifier la tâche' : 'Nouvelle tâche';
+  $('edit-title').value = c?.title || '';
+  $('edit-category').value = c?.category || '';
+  $('edit-location').value = c?.location || '';
+  $('edit-todo').value = c?.todo || '';
+  $('edit-sabotage').value = c?.sabotage || '';
+  $('edit-delete').hidden = !c;
+  $('edit-overlay').hidden = false;
+  if (!c) $('edit-title').focus();
+}
+
+async function saveEdit(e) {
+  e.preventDefault();
+  const data = {
+    title: $('edit-title').value.trim(),
+    category: $('edit-category').value.trim(),
+    location: $('edit-location').value.trim(),
+    todo: $('edit-todo').value.trim(),
+    sabotage: $('edit-sabotage').value.trim(),
+  };
+  if (!data.title) return $('edit-title').focus();
+  if (S.editId) {
+    await update(ref(db, `catalog/${S.editId}`), data);
+  } else {
+    await set(push(ref(db, 'catalog')), { ...data, enabled: true, order: Date.now() });
+  }
+  $('edit-overlay').hidden = true;
+  toast('Catalogue enregistré ✓');
+}
+
+async function deleteEdit() {
+  const c = S.catalog?.[S.editId];
+  if (!c || !confirm(`Supprimer définitivement « ${c.title} » du catalogue ?\n(Pour l'exclure seulement de ce soir, décoche-la plutôt.)`)) return;
+  await remove(ref(db, `catalog/${S.editId}`));
+  $('edit-overlay').hidden = true;
+}
+
+async function toggleCatalog(id) {
+  const c = S.catalog?.[id];
+  if (c) await update(ref(db, `catalog/${id}`), { enabled: c.enabled === false });
+}
+
+// Détail d'une tâche de la partie (bouton ⓘ)
+function openInfo(id) {
   const t = S.room?.tasks?.[id];
-  if (!t || !confirm(`Retirer « ${t.title} – ${t.location} » ?`)) return;
-  await remove(taskRef(id));
+  if (!t) return;
+  $('info-title').textContent = t.title;
+  $('info-location').textContent = t.location ? `📍 ${t.location}` : '';
+  $('info-todo').textContent = t.todo || 'Pas de description.';
+  $('info-sabotage').textContent = t.sabotage || 'Pas de description.';
+  $('info-overlay').hidden = false;
 }
 
 // =====================================================================
@@ -750,7 +1013,8 @@ function taskCard(t, eff, playing) {
   const id = esc(t.id);
   const inspect = playing && eff === 'completed'
     ? `<button type="button" data-action="inspect" data-id="${id}" class="shrink-0 rounded-lg bg-black/15 px-3 py-2 text-xs font-semibold text-white/85 active:bg-black/30">Vérifier</button>`
-    : `<span class="shrink-0 rounded-full ${th.badge} px-2 py-1 text-[10px] font-bold uppercase tracking-wider">${th.label}</span>`;
+    : eff === 'pending' ? ''
+      : `<span class="shrink-0 rounded-full ${th.badge} px-2 py-1 text-[10px] font-bold uppercase tracking-wider">${th.label}</span>`;
   const validate = playing && eff !== 'completed'
     ? `<button type="button" data-action="validate" data-id="${id}" class="mt-3 w-full rounded-xl py-3.5 text-base font-black transition active:scale-[.98] ${eff === 'sabotaged' ? 'bg-white text-red-700' : 'bg-zinc-100 text-zinc-900'}">Valider la tâche</button>`
     : '';
@@ -759,10 +1023,11 @@ function taskCard(t, eff, playing) {
       <div class="flex items-center gap-3">
         <div class="grid h-10 w-10 shrink-0 place-items-center rounded-full ${th.badge} text-lg font-black">${th.icon}</div>
         <div class="min-w-0 flex-1">
-          <h3 class="truncate text-lg font-bold leading-tight">${esc(t.title)}</h3>
-          <p class="truncate text-sm opacity-75">📍 ${esc(t.location || '—')}</p>
+          <h3 class="break-words text-base font-bold leading-snug">${esc(t.title)}</h3>
+          ${t.location ? `<p class="truncate text-sm opacity-75">📍 ${esc(t.location)}</p>` : ''}
           <span data-countdown="${id}" class="font-mono text-xs text-white/70"></span>
         </div>
+        <button type="button" data-action="info" data-id="${id}" class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/15 text-base font-bold opacity-80 active:bg-black/30" aria-label="Détails de la tâche">ⓘ</button>
         ${inspect}
       </div>
       ${validate}
@@ -839,12 +1104,16 @@ function renderHostPanel(tasks) {
   $('hp-sheriffs').textContent = sheriffs;
   $('hp-roles-summary').textContent = rolesSummary();
   $('hp-players').innerHTML = playerChips(st !== 'playing');
-  $('hp-task-count').textContent = tasks.length;
-  $('hp-tasks').innerHTML = tasks.map((t) => `
-    <li class="flex items-center gap-2 rounded-lg bg-zinc-800/70 py-1 pl-3 pr-1">
-      <span class="min-w-0 flex-1 truncate text-sm"><b>${esc(t.title)}</b> <span class="text-zinc-400">· ${esc(t.location)}</span></span>
-      <button type="button" data-action="remove-task" data-id="${esc(t.id)}" class="h-9 w-9 shrink-0 rounded-md text-zinc-400 active:bg-zinc-700" aria-label="Retirer">✕</button>
-    </li>`).join('') || '<li class="text-sm text-zinc-500">Aucune tâche — ajoutes-en une.</li>';
+  // Tâches : nombre tiré au sort dans le catalogue au lancement
+  const { taskCount } = roleCounts();
+  const activeCount = catalogList().filter((c) => c.enabled !== false).length;
+  $('hp-tasks-setup').hidden = st === 'playing';
+  $('hp-task-count').textContent = taskCount;
+  $('hp-tasks-summary').textContent = !S.catalog
+    ? 'Chargement du catalogue…'
+    : taskCount > activeCount
+      ? `⚠️ Seulement ${plural(activeCount, 'tâche active')} dans le catalogue : elles seront toutes utilisées.`
+      : `${taskCount} tirées au sort parmi ${plural(activeCount, 'tâche active')} du catalogue.`;
   $('hp-start').hidden = st === 'playing';
   $('hp-start').textContent = st === 'finished' ? '▶ Relancer une partie' : '▶ Lancer la partie';
   $('hp-end').hidden = st !== 'playing';
@@ -879,7 +1148,7 @@ function render(tasks, now) {
 
   const sab = tasks.filter((t) => effStatus(t, now) === 'sabotaged');
   $('alert').hidden = !(st === 'playing' && sab.length);
-  $('alert-detail').textContent = sab.map((t) => `${t.title} – ${t.location}`).join(' · ');
+  $('alert-detail').textContent = sab.map((t) => (t.location ? `${t.title} – ${t.location}` : t.title)).join(' · ');
   if (S.lastSabCount !== null && st === 'playing' && sab.length > S.lastSabCount) alarm();
   S.lastSabCount = sab.length;
 
@@ -894,7 +1163,7 @@ function render(tasks, now) {
   // Panneaux
   $('view-wait').hidden = st !== 'lobby' || host;
   $('host-panel').hidden = !host || (st !== 'lobby' && !S.hostOpen);
-  if (host) renderHostPanel(tasks);
+  if (host) { ensureCatalog(); renderHostPanel(tasks); }
 
   // Tâches
   $('task-list').hidden = st === 'lobby';
@@ -993,7 +1262,15 @@ function bindUi() {
     if (S.hostOpen) window.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
-  $('hp-add').addEventListener('submit', (e) => hostAddTask(e).catch((err) => toast('Erreur : ' + err.message)));
+  $('hp-catalog').addEventListener('click', openCatalog);
+  $('edit-form').addEventListener('submit', (e) => saveEdit(e).catch((err) => toast('Erreur : ' + err.message)));
+  $('edit-delete').addEventListener('click', () => deleteEdit().catch((err) => toast('Erreur : ' + err.message)));
+  document.querySelectorAll('[data-close]').forEach((b) =>
+    b.addEventListener('click', () => { $(b.dataset.close).hidden = true; }));
+  // Toucher le fond d'une fenêtre la ferme
+  for (const id of ['info-overlay', 'edit-overlay']) {
+    $(id).addEventListener('click', (e) => { if (e.target.id === id) $(id).hidden = true; });
+  }
   $('hp-start').addEventListener('click', () => hostStart().catch((err) => toast('Erreur : ' + err.message)));
   $('hp-reset').addEventListener('click', () => hostReset().catch((err) => toast('Erreur : ' + err.message)));
   $('hp-end').addEventListener('click', () => hostEnd().catch((err) => toast('Erreur : ' + err.message)));
@@ -1006,7 +1283,10 @@ function bindUi() {
     const { action, id } = el.dataset;
     if (action === 'validate') validateTask(id);
     else if (action === 'inspect') inspectTask(id);
-    else if (action === 'remove-task') hostRemoveTask(id).catch((err) => toast('Erreur : ' + err.message));
+    else if (action === 'info') openInfo(id);
+    else if (action === 'cat-new') openEdit(null);
+    else if (action === 'cat-edit') openEdit(id);
+    else if (action === 'cat-toggle') toggleCatalog(id).catch((err) => toast('Erreur : ' + err.message));
     else if (action === 'delay') hostSetDelay(el.dataset.delay).catch((err) => toast('Erreur : ' + err.message));
     else if (action === 'count') hostSetCount(el.dataset.key, Number(el.dataset.delta)).catch((err) => toast('Erreur : ' + err.message));
     else if (action === 'kick') hostKick(el.dataset.uid).catch((err) => toast('Erreur : ' + err.message));

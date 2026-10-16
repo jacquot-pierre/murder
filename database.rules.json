@@ -22,6 +22,9 @@
         "sheriffs": {
           ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 20"
         },
+        "taskCount": {
+          ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50"
+        },
 
         "players": {
           "$uid": {
@@ -33,12 +36,29 @@
         "tasks": {
           "$taskId": {
             ".write": "auth != null && data.exists() && newData.exists() && root.child('rooms').child($code).child('status').val() === 'playing'",
-            ".validate": "newData.hasChildren(['title', 'status']) && (newData.parent().parent().child('hostUid').val() === auth.uid || (newData.child('title').val() === data.child('title').val() && newData.child('location').val() === data.child('location').val()))",
+            ".validate": "newData.hasChildren(['title', 'status']) && (newData.parent().parent().child('hostUid').val() === auth.uid || (newData.child('title').val() === data.child('title').val() && newData.child('location').val() === data.child('location').val() && newData.child('todo').val() === data.child('todo').val() && newData.child('sabotage').val() === data.child('sabotage').val()))",
             "status": {
               ".validate": "newData.val() === 'pending' || newData.val() === 'completed' || newData.val() === 'sabotaged'"
             }
           }
         }
+      }
+    },
+
+    "catalog": {
+      ".read": "auth != null",
+      ".write": "auth != null && !data.exists()",
+      "$id": {
+        ".write": "auth != null",
+        ".validate": "newData.child('title').isString() && newData.child('title').val().length >= 1 && newData.child('title').val().length <= 60",
+        "title": { ".validate": "newData.isString()" },
+        "category": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "location": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "todo": { ".validate": "newData.isString() && newData.val().length <= 600" },
+        "sabotage": { ".validate": "newData.isString() && newData.val().length <= 600" },
+        "enabled": { ".validate": "newData.isBoolean()" },
+        "order": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
       }
     },
 

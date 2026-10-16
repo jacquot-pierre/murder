@@ -27,10 +27,20 @@ Pour tester en local, servir le dossier en HTTP (par ex. `npx serve .`) plutôt 
 3. L'hôte règle :
    - le nombre de **tueurs** (au moins 1) et de **shérifs** ;
    - le **délai de sabotage**, avec un raccourci (15 à 90 s) ou une valeur exacte de 1 à 3600 s ;
-   - la liste des tâches.
+   - le **nombre de tâches** par partie.
 
    Il peut aussi retirer un joueur absent avec ✕.
-4. **Lancer la partie** tire les rôles au sort parmi tous les joueurs du salon. Chacun découvre le sien en maintenant l'écran appuyé.
+4. **Lancer la partie** tire au sort les tâches dans le catalogue et les rôles parmi tous les joueurs du salon. Chacun découvre son rôle en maintenant l'écran appuyé.
+
+### Catalogue de tâches
+
+- **Stockage :** le catalogue est enregistré dans Firebase (`/catalog`) et **partagé par toutes les parties**. Au tout premier lancement, il est rempli avec les 24 tâches de `DEFAULT_CATALOG` (dans `index.html`).
+- **Gestion :** l'hôte l'ouvre avec **📚 Gérer le catalogue de tâches**. Il peut :
+  - **décocher** une tâche pour l'exclure du tirage, par exemple si le matériel n'est pas installé ce soir-là ;
+  - **toucher** une tâche pour modifier son nom, sa catégorie, son lieu, « À faire » et « Comment la saboter », ou pour la supprimer définitivement ;
+  - ajouter une tâche avec **+ Nouvelle tâche**.
+- **Effet sur la partie :** les modifications valent pour les parties suivantes. Une partie en cours garde sa copie des tâches tirées.
+- **Détail en jeu :** sur chaque tâche, le bouton **ⓘ** affiche ce qu'il faut faire et comment la saboter. Il est visible par tout le monde.
 
 ### Rôles
 
@@ -64,7 +74,8 @@ Un joueur qui arrive après le lancement joue survivant.
 - **Rôles privés** : le tirage est stocké dans `roles/{code}/{uid}`, un nœud séparé du salon. Les règles autorisent chaque joueur à lire **uniquement son propre rôle**.
 - **Limites connues** (acceptables pour une soirée entre amis) :
   - le tirage est fait par le téléphone de l'hôte, donc un hôte expert, outils de développement ouverts, pourrait le voir ;
-  - `sabotageTriggerAt` est lisible dans la base, donc un joueur expert pourrait repérer un sabotage en attente.
+  - `sabotageTriggerAt` est lisible dans la base, donc un joueur expert pourrait repérer un sabotage en attente ;
+  - le catalogue est modifiable par tout joueur connecté, puisqu'il n'y a pas de comptes. Les règles empêchent seulement de l'effacer d'un seul coup.
 
   Pour aller plus loin, il faudrait un serveur (Cloud Functions).
 
@@ -82,17 +93,32 @@ Un joueur qui arrive après le lancement joue survivant.
       "sabotageDelay": 30,
       "killers": 1,
       "sheriffs": 1,
+      "taskCount": 8,
       "players": { "uid": { "pseudo": "Alice", "online": true } },
       "tasks": {
         "-Nx…": {
           "id": "-Nx…",
-          "title": "Multiprise",
-          "location": "Salon",
+          "catalogId": "rideau",
+          "title": "Le rideau",
+          "location": "Chambre",
+          "todo": "Ouvrir (ou fermer) entièrement le rideau…",
+          "sabotage": "Tirer le rideau dans la position inverse…",
           "status": "pending | completed | sabotaged",
           "sabotageTriggerAt": 1760550000000,
           "order": 0
         }
       }
+    }
+  },
+  "catalog": {
+    "rideau": {
+      "category": "Décor & murs",
+      "title": "Le rideau",
+      "location": "Chambre",
+      "todo": "Ouvrir (ou fermer) entièrement le rideau…",
+      "sabotage": "Tirer le rideau dans la position inverse…",
+      "enabled": true,
+      "order": 13
     }
   },
   "roles": {
