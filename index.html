@@ -132,6 +132,10 @@
         <div id="alert-detail" class="text-xs font-semibold opacity-90"></div>
       </div>
 
+      <div id="audio-banner" hidden class="bg-amber-400 px-3 py-2 text-center text-sm font-bold text-zinc-950">
+        🔇 Touche l'écran pour activer le son et la vibration
+      </div>
+
       <div id="power-banner" hidden class="bg-violet-700 px-3 py-2 text-center text-white">
         <div class="font-black tracking-wide"><span id="pb-icon"></span> <span id="pb-title"></span> · <span id="pb-left" class="font-mono"></span></div>
         <div id="pb-text" class="text-xs font-semibold opacity-90"></div>
@@ -595,7 +599,8 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
   del(k) { try { localStorage.removeItem(k); } catch {} },
 };
-const vibrate = (p) => { try { navigator.vibrate?.(p); } catch {} };
+// Renvoie false si le navigateur n'a pas la vibration (iPhone, Firefox…) ou la refuse
+const vibrate = (p) => { try { return navigator.vibrate?.(p) ?? false; } catch { return false; } };
 const serverNow = () => Date.now() + S.offset;
 const roomRef = () => ref(db, `rooms/${S.code}`);
 const taskRef = (id) => ref(db, `rooms/${S.code}/tasks/${id}`);
@@ -715,7 +720,7 @@ function vibrateRepeat(pattern) {
   const { repeat } = soundPrefs();
   const out = [];
   for (let r = 0; r < repeat; r++) out.push(...pattern, 300);
-  vibrate(out.slice(0, -1));
+  return vibrate(out.slice(0, -1));
 }
 
 // Sabotage : sirène à deux tons
@@ -1540,6 +1545,8 @@ function tick() {
   if (!S.code || !S.room) return;
   const now = serverNow();
   const tasks = taskList();
+  // Le navigateur bloque son et vibration tant que la page n'a pas été touchée (ex. après un rechargement)
+  $('audio-banner').hidden = audioCtx?.state === 'running';
   renderPowerEffect(now);
   const sig = tasks.map((t) => t.id + ':' + effStatus(t, now)).join('|');
   if (S.dirty || sig !== S.lastSig) {
@@ -1617,9 +1624,14 @@ function bindUi() {
   document.querySelectorAll('[data-repeat]').forEach((b) =>
     b.addEventListener('click', () => saveSound({ repeat: Number(b.dataset.repeat) })));
   $('snd-test').addEventListener('click', () => {
-    // Le toucher vient de débloquer l'audio (pointerdown) : on laisse le contexte démarrer
-    setTimeout(() => powerSound(true), 50);
-    if (!('vibrate' in navigator)) toast('Vibration non disponible sur ce téléphone (normal sur iPhone).', 3500);
+    // Vibration tout de suite (geste de l'utilisateur), son juste après : le toucher vient de débloquer l'audio
+    const vibrated = vibrateRepeat([250, 100, 250, 100, 250]);
+    setTimeout(() => playPattern([523, 659, 784, 1047], 0.16), 50);
+    if (vibrated) return;
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    toast(ios ? 'Pas de vibration possible sur iPhone : seul le son fonctionne.'
+      : !('vibrate' in navigator) ? 'Ce navigateur ne gère pas la vibration : ouvre le jeu dans Chrome.'
+        : 'Vibration refusée par le téléphone (mode silencieux / Ne pas déranger ?).', 5000);
   });
   renderSoundCard();
 
