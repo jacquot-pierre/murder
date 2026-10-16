@@ -109,6 +109,8 @@
         <button id="hdr-role" type="button"
                 class="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-500">👁 Rôle</button>
         <div class="ml-auto flex gap-1">
+          <button id="btn-power" type="button" hidden
+                  class="h-9 w-9 rounded-lg border border-zinc-800 bg-zinc-900 text-sm" aria-label="Pouvoirs">⚡</button>
           <button id="btn-host" type="button" hidden
                   class="h-9 rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-sm">⚙️ Hôte</button>
           <button id="btn-leave" type="button"
@@ -129,9 +131,36 @@
         <div class="font-black tracking-wide">⚠️ ALERTE : TÂCHE SABOTÉE</div>
         <div id="alert-detail" class="text-xs font-semibold opacity-90"></div>
       </div>
+
+      <div id="power-banner" hidden class="bg-violet-700 px-3 py-2 text-center text-white">
+        <div class="font-black tracking-wide"><span id="pb-icon"></span> <span id="pb-title"></span> · <span id="pb-left" class="font-mono"></span></div>
+        <div id="pb-text" class="text-xs font-semibold opacity-90"></div>
+      </div>
     </header>
 
     <main class="safe-bottom flex flex-1 flex-col gap-4 p-4">
+      <!-- Son et vibration (salon d'attente, pour tous) — réglage propre à chaque téléphone -->
+      <div id="sound-card" hidden class="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="font-bold">🔊 Son et vibration</h2>
+          <span class="text-xs text-zinc-500">réglage de ce téléphone</span>
+        </div>
+        <label class="mt-3 block">
+          <span class="flex justify-between text-sm text-zinc-400"><span>Volume</span><span id="snd-vol-label" class="font-mono"></span></span>
+          <input id="snd-vol" type="range" min="10" max="100" step="10" class="mt-1 w-full accent-violet-500">
+        </label>
+        <div class="mt-3">
+          <span class="text-sm text-zinc-400">Durée des signaux</span>
+          <div class="mt-1 grid grid-cols-3 gap-1">
+            <button type="button" data-repeat="1" class="rounded-lg py-2 text-sm font-bold">Court</button>
+            <button type="button" data-repeat="2" class="rounded-lg py-2 text-sm font-bold">Long</button>
+            <button type="button" data-repeat="3" class="rounded-lg py-2 text-sm font-bold">Très long</button>
+          </div>
+        </div>
+        <button id="snd-test" type="button" class="mt-3 w-full rounded-xl bg-violet-500 py-3 font-black text-white active:scale-[.98]">▶ Tester le son et la vibration</button>
+        <p class="mt-2 text-xs text-zinc-500">Sur iPhone : désactive le mode silencieux et monte le volume (pas de vibration possible). Garde la page ouverte pendant la partie.</p>
+      </div>
+
       <!-- Attente (joueurs non hôtes, salon d'attente) -->
       <div id="view-wait" hidden class="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 text-center">
         <div class="text-4xl">⏳</div>
@@ -196,6 +225,30 @@
             <span class="text-sm text-zinc-400">s</span>
             <span id="hp-delay-human" class="ml-auto text-xs text-zinc-500"></span>
           </div>
+        </div>
+
+        <div id="hp-powers">
+          <div class="mb-2 text-sm text-zinc-400">⚡ Pouvoirs des tueurs</div>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="rounded-lg bg-zinc-800/70 p-2">
+              <span class="block text-xs text-zinc-400">Cooldown de départ</span>
+              <span class="mt-1 flex items-center gap-1">
+                <input data-setting="powerSettings/startCooldown" data-min="0" data-max="3600" type="number" inputmode="numeric"
+                       class="w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center font-mono text-base outline-none focus:border-zinc-500">
+                <span class="text-xs text-zinc-500">s</span>
+              </span>
+            </label>
+            <label class="rounded-lg bg-zinc-800/70 p-2">
+              <span class="block text-xs text-zinc-400">Entre deux pouvoirs</span>
+              <span class="mt-1 flex items-center gap-1">
+                <input data-setting="powerSettings/cooldown" data-min="0" data-max="3600" type="number" inputmode="numeric"
+                       class="w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-center font-mono text-base outline-none focus:border-zinc-500">
+                <span class="text-xs text-zinc-500">s</span>
+              </span>
+            </label>
+          </div>
+          <div id="hp-power-list" class="mt-2 flex flex-col gap-1"></div>
+          <p class="mt-2 text-xs text-zinc-500">Le cooldown entre deux pouvoirs démarre à la fin de l'effet. Utilisations et cooldowns sont partagés par l'équipe des tueurs.</p>
         </div>
 
         <div id="hp-tasks-setup">
@@ -322,6 +375,28 @@
   </form>
 </div>
 
+<!-- Pouvoirs (bouton ⚡, identique pour tous ; seuls les tueurs y trouvent des pouvoirs) -->
+<div id="power-sheet" hidden class="fixed inset-0 z-40 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+  <div class="safe-bottom max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl border border-zinc-700 bg-zinc-900 p-5 sm:rounded-3xl">
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-black">⚡ Pouvoirs</h2>
+      <button type="button" data-close="power-sheet" class="h-9 w-9 rounded-lg bg-zinc-800 text-sm" aria-label="Fermer">✕</button>
+    </div>
+    <p id="ps-status" class="mt-1 text-sm text-zinc-400"></p>
+    <div id="ps-list" class="mt-4 flex flex-col gap-2"></div>
+  </div>
+</div>
+
+<!-- Effet d'un pouvoir, sur tous les téléphones (tueur compris) -->
+<div id="power-overlay" hidden class="fixed inset-0 z-[45] grid place-items-center bg-violet-700 p-6 text-center text-white">
+  <div>
+    <div id="pw-icon" class="text-8xl"></div>
+    <div id="pw-title" class="mt-4 text-4xl font-black leading-tight"></div>
+    <p id="pw-text" class="mt-3 text-lg opacity-90"></p>
+    <div id="pw-left" class="mt-8 font-mono text-7xl font-black"></div>
+  </div>
+</div>
+
 <!-- Fin de partie -->
 <div id="end-overlay" hidden class="fixed inset-0 z-30 grid place-items-center bg-black/80 p-6 backdrop-blur-sm">
   <div class="w-full max-w-sm rounded-3xl border border-zinc-700 bg-zinc-900 p-6 text-center">
@@ -382,6 +457,21 @@ const ROLES = {
     desc: () => 'Réalise les tâches et valide-les sur ton téléphone. Méfie-toi de tout le monde.',
   },
 };
+// Pouvoirs des tueurs : valeurs par défaut, réglables par l'hôte (rooms/{code}/powerSettings).
+// full = écran plein sur tous les téléphones ; sinon bandeau (le blocage laisse voir les tâches).
+const DEFAULT_POWER = { startCooldown: 120, cooldown: 60 };
+const POWERS = [
+  { id: 'block', icon: '🔒', name: 'Blocage des tâches', duration: 30, maxUses: 2, full: false,
+    title: 'TÂCHES BLOQUÉES', text: 'Personne ne peut valider de tâche.' },
+  { id: 'eyes', icon: '🙈', name: 'Yeux fermés', duration: 10, maxUses: 2, full: true,
+    title: 'FERMEZ LES YEUX !', text: "Tout le monde ferme les yeux jusqu'au signal sonore." },
+  { id: 'hop', icon: '🦩', name: 'Cloche-pied', duration: 15, maxUses: 2, full: true,
+    title: 'À CLOCHE-PIED !', text: "Tout le monde saute à cloche-pied jusqu'au signal sonore." },
+  { id: 'sing', icon: '🎤', name: 'Chorale', duration: 15, maxUses: 2, full: true,
+    title: 'CHANTEZ À TUE-TÊTE !', text: "Tout le monde chante à tue-tête jusqu'au signal sonore." },
+];
+const POWER_BY_ID = Object.fromEntries(POWERS.map((p) => [p.id, p]));
+
 const DEFAULT_TASK_COUNT = 8;
 const MAX_TASK_COUNT = 50;
 
@@ -577,25 +667,72 @@ document.addEventListener('pointerdown', () => {
   } catch {}
 }, { passive: true });
 
-function alarm() {
-  vibrate([400, 150, 400, 150, 400]);
+// Réglages propres à ce téléphone : volume (10–100 %) et répétitions du signal (1 court, 2 long, 3 très long)
+const SOUND_DEFAULT = { volume: 80, repeat: 2 };
+const soundPrefs = () => ({ ...SOUND_DEFAULT, ...(store.get('mp.sound') || {}) });
+
+// Sortie commune : un compresseur permet de pousser le volume sans saturer
+let audioOut = null;
+function output() {
+  if (!audioOut) {
+    audioOut = audioCtx.createDynamicsCompressor();
+    audioOut.threshold.value = -20;
+    audioOut.ratio.value = 8;
+    audioOut.connect(audioCtx.destination);
+  }
+  return audioOut;
+}
+
+// Joue une suite de notes, répétée selon le réglage du téléphone
+function playPattern(notes, len, wave = 'square') {
   if (!audioCtx) return;
   try {
-    const t0 = audioCtx.currentTime;
-    for (let i = 0; i < 4; i++) {
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      const t = t0 + i * 0.22;
-      o.type = 'square';
-      o.frequency.value = i % 2 ? 660 : 880;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
-      o.connect(g).connect(audioCtx.destination);
-      o.start(t);
-      o.stop(t + 0.2);
+    const { volume, repeat } = soundPrefs();
+    const peak = Math.max(0.0002, volume / 100);
+    const step = len + 0.05;
+    const loop = notes.length * step + 0.3;
+    let t = audioCtx.currentTime + 0.02;
+    for (let r = 0; r < repeat; r++) {
+      notes.forEach((f, i) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        const s = t + r * loop + i * step;
+        o.type = wave;
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, s);
+        g.gain.exponentialRampToValueAtTime(peak, s + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, s + len);
+        o.connect(g).connect(output());
+        o.start(s);
+        o.stop(s + len + 0.02);
+      });
     }
   } catch {}
+}
+
+// Motif de vibration répété autant de fois que le signal sonore
+function vibrateRepeat(pattern) {
+  const { repeat } = soundPrefs();
+  const out = [];
+  for (let r = 0; r < repeat; r++) out.push(...pattern, 300);
+  vibrate(out.slice(0, -1));
+}
+
+// Sabotage : sirène à deux tons
+function alarm() {
+  vibrateRepeat([400, 150, 400, 150, 400]);
+  playPattern([880, 660, 880, 660], 0.2);
+}
+
+// Pouvoirs : arpège montant au début, deux longues notes à la fin (« rouvrez les yeux »)
+function powerSound(start) {
+  if (start) {
+    vibrateRepeat([250, 100, 250, 100, 250]);
+    playPattern([523, 659, 784, 1047], 0.16);
+  } else {
+    vibrateRepeat([600]);
+    playPattern([784, 523], 0.45, 'triangle');
+  }
 }
 
 // --- Écran toujours allumé pendant la partie ---
@@ -682,6 +819,7 @@ async function enterRoom(code, pseudo) {
   Object.assign(S, {
     code, pseudo, room: snap.val(), myRole: null, roleLoaded: false, dirty: true, lastSig: '', lastStatus: null,
     lastSabCount: null, hostOpen: false, endDismissed: false, mySab: store.get('mp.sab.' + code) || {},
+    powerKey: null, powerSheetSig: '',
   });
   store.set('mp.session', { code, pseudo });
   store.set('mp.pseudo', pseudo);
@@ -733,8 +871,174 @@ function exitRoom() {
   S.myRole = null;
   store.del('mp.session');
   keepAwake(false);
-  for (const id of ['end-overlay', 'role-overlay', 'info-overlay', 'catalog-overlay', 'edit-overlay']) $(id).hidden = true;
+  for (const id of ['end-overlay', 'role-overlay', 'info-overlay', 'catalog-overlay', 'edit-overlay', 'power-sheet', 'power-overlay']) $(id).hidden = true;
   showScreen('home');
+}
+
+// =====================================================================
+//  POUVOIRS DES TUEURS
+// =====================================================================
+function powerSettings() {
+  const ps = S.room?.powerSettings || {};
+  const out = {
+    startCooldown: ps.startCooldown ?? DEFAULT_POWER.startCooldown,
+    cooldown: ps.cooldown ?? DEFAULT_POWER.cooldown,
+  };
+  for (const p of POWERS) {
+    out[p.id] = {
+      enabled: ps[p.id]?.enabled ?? true,
+      duration: ps[p.id]?.duration ?? p.duration,
+      maxUses: ps[p.id]?.maxUses ?? p.maxUses,
+    };
+  }
+  return out;
+}
+
+// Pouvoir en cours (heure serveur), ou null
+function activePower(now = serverNow()) {
+  const a = S.room?.status === 'playing' ? S.room?.power?.active : null;
+  return a && a.until > now ? a : null;
+}
+const tasksBlocked = (now) => activePower(now)?.type === 'block';
+
+// Moment où les pouvoirs redeviennent utilisables (cooldown de départ, puis cooldown après la fin du dernier effet)
+function powersReadyAt(ps = powerSettings(), st = S.room?.power || {}) {
+  return Math.max((S.room?.startedAt || 0) + ps.startCooldown * 1000, (st.lastEnd || 0) + ps.cooldown * 1000);
+}
+
+async function usePower(id) {
+  if (myRole() !== 'TUEUR') return;
+  const ps = powerSettings();
+  const cfg = ps[id], def = POWER_BY_ID[id];
+  if (!confirm(`${def.icon} Activer « ${def.name} » pendant ${fmtDelay(cfg.duration)} ?`)) return;
+  let reason = '';
+  try {
+    // Transaction : stock et cooldown sont partagés par tous les tueurs, deux activations simultanées sont impossibles.
+    const res = await runTransaction(ref(db, `rooms/${S.code}/power`), (cur) => {
+      cur = cur || {};
+      const now = Math.round(serverNow());
+      if (cur.active?.until > now) { reason = 'Un pouvoir est déjà en cours.'; return; }
+      const ready = powersReadyAt(ps, cur);
+      if (now < ready) { reason = `Pouvoirs en recharge : ${fmtDelay(Math.ceil((ready - now) / 1000))}.`; return; }
+      const used = cur.uses?.[id] || 0;
+      if (!cfg.enabled || used >= cfg.maxUses) { reason = 'Plus aucune utilisation pour ce pouvoir.'; return; }
+      const until = now + cfg.duration * 1000;
+      return { ...cur, uses: { ...(cur.uses || {}), [id]: used + 1 }, lastEnd: until, active: { type: id, at: now, until } };
+    });
+    if (res.committed) $('power-sheet').hidden = true;
+    else toast(reason || 'Impossible pour le moment.');
+  } catch (e) {
+    toast('Erreur : ' + e.message);
+  }
+}
+
+// Contenu de la fenêtre ⚡ : re-rendu seulement quand l'état change (sinon les boutons seraient recréés 4×/s)
+function renderPowerSheet(now) {
+  if ($('power-sheet').hidden) return;
+  if (myRole() !== 'TUEUR') {
+    $('ps-status').textContent = '';
+    if (S.powerSheetSig !== 'none') {
+      S.powerSheetSig = 'none';
+      $('ps-list').innerHTML = '<p class="py-6 text-center text-zinc-400">Tu n\'as aucun pouvoir.</p>';
+    }
+    return;
+  }
+  const ps = powerSettings(), st = S.room?.power || {};
+  const active = activePower(now);
+  const wait = Math.max(0, Math.ceil((powersReadyAt(ps, st) - now) / 1000));
+  $('ps-status').textContent = active ? `${POWER_BY_ID[active.type].icon} Pouvoir en cours…`
+    : wait > 0 ? `⏳ Recharge : ${fmtDelay(wait)}` : '✅ Pouvoirs prêts';
+  const ready = !active && wait === 0;
+  const list = POWERS.filter((p) => ps[p.id].enabled && ps[p.id].maxUses > 0);
+  const sig = JSON.stringify([ready, list.map((p) => [p.id, ps[p.id], st.uses?.[p.id] || 0])]);
+  if (sig === S.powerSheetSig) return;
+  S.powerSheetSig = sig;
+  $('ps-list').innerHTML = list.map((p) => {
+    const cfg = ps[p.id], used = st.uses?.[p.id] || 0, left = Math.max(0, cfg.maxUses - used);
+    const can = ready && left > 0;
+    return `
+      <div class="flex items-center gap-3 rounded-2xl bg-zinc-800/70 p-3 ${left ? '' : 'opacity-50'}">
+        <div class="text-3xl">${p.icon}</div>
+        <div class="min-w-0 flex-1">
+          <div class="font-bold">${p.name}</div>
+          <div class="text-xs text-zinc-400">${fmtDelay(cfg.duration)} · ${left}/${cfg.maxUses} restant${left > 1 ? 's' : ''}</div>
+        </div>
+        <button type="button" data-action="power" data-id="${p.id}" ${can ? '' : 'disabled'}
+                class="rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-black text-white active:scale-[.97] disabled:bg-zinc-700 disabled:text-zinc-400">Activer</button>
+      </div>`;
+  }).join('') || '<p class="py-6 text-center text-zinc-400">Aucun pouvoir activé par l\'hôte.</p>';
+}
+
+// Effet en cours : écran plein (ou bandeau pour le blocage), son et vibration au début et à la fin
+function renderPowerEffect(now) {
+  const a = activePower(now);
+  const key = a ? `${a.type}:${a.at}` : null;
+  if (key !== S.powerKey) {
+    if (key) powerSound(true);
+    else if (S.powerKey) powerSound(false);
+    S.powerKey = key;
+    S.dirty = true; // boutons « Valider » à (dé)bloquer
+  }
+  const def = a && POWER_BY_ID[a.type];
+  const left = a ? `${Math.ceil((a.until - now) / 1000)} s` : '';
+  $('power-overlay').hidden = !def?.full;
+  $('power-banner').hidden = !def || def.full;
+  if (!def) return;
+  if (def.full) {
+    $('pw-icon').textContent = def.icon;
+    $('pw-title').textContent = def.title;
+    $('pw-text').textContent = def.text;
+    $('pw-left').textContent = left;
+  } else {
+    $('pb-icon').textContent = def.icon;
+    $('pb-title').textContent = def.title;
+    $('pb-text').textContent = def.text;
+    $('pb-left').textContent = left;
+  }
+}
+
+// Paramètres des pouvoirs dans le panneau de l'hôte (champs créés une fois, valeurs mises à jour hors saisie)
+function buildPowerSettingsUi() {
+  $('hp-power-list').innerHTML = POWERS.map((p) => `
+    <div class="rounded-lg bg-zinc-800/70 p-2">
+      <label class="flex items-center gap-2">
+        <input type="checkbox" data-setting="powerSettings/${p.id}/enabled" class="h-5 w-5 accent-violet-500">
+        <span class="text-sm font-semibold">${p.icon} ${p.name}</span>
+      </label>
+      <div class="mt-2 grid grid-cols-2 gap-2 pl-7">
+        <label class="flex items-center gap-1 text-xs text-zinc-400">Durée
+          <input data-setting="powerSettings/${p.id}/duration" data-min="1" data-max="3600" type="number" inputmode="numeric"
+                 class="w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-center font-mono text-base text-zinc-100 outline-none focus:border-zinc-500">s</label>
+        <label class="flex items-center gap-1 text-xs text-zinc-400">Max
+          <input data-setting="powerSettings/${p.id}/maxUses" data-min="0" data-max="99" type="number" inputmode="numeric"
+                 class="w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-center font-mono text-base text-zinc-100 outline-none focus:border-zinc-500">×</label>
+      </div>
+    </div>`).join('');
+}
+
+function renderPowerSettings() {
+  const ps = powerSettings();
+  document.querySelectorAll('#hp-powers [data-setting]').forEach((el) => {
+    if (el === document.activeElement) return;
+    const v = el.dataset.setting.split('/').slice(1).reduce((o, k) => o?.[k], ps);
+    if (el.type === 'checkbox') el.checked = !!v;
+    else el.value = v;
+  });
+}
+
+async function saveSetting(el) {
+  let value;
+  if (el.type === 'checkbox') value = el.checked;
+  else {
+    value = Math.round(Number(el.value));
+    const min = Number(el.dataset.min), max = Number(el.dataset.max);
+    if (!Number.isFinite(value) || value < min || value > max) {
+      toast(`Valeur entre ${min} et ${max}.`);
+      S.dirty = true;
+      return;
+    }
+  }
+  await update(roomRef(), { [el.dataset.setting]: value });
 }
 
 // =====================================================================
@@ -753,6 +1057,7 @@ async function taskTx(id, fn) {
 }
 
 async function validateTask(id) {
+  if (tasksBlocked(serverNow())) { toast('🔒 Tâches bloquées pour le moment.'); return; }
   try {
     const res = await taskTx(id, (cur) => {
       if (!cur) return;
@@ -861,13 +1166,13 @@ async function hostStart() {
   });
   // Les rôles d'abord, le changement de statut ensuite : chacun connaît son rôle quand la partie démarre.
   await set(ref(db, `roles/${S.code}`), roles);
-  await update(roomRef(), { tasks, status: 'playing', endReason: null, startedAt: serverTimestamp() });
+  await update(roomRef(), { tasks, power: null, status: 'playing', endReason: null, startedAt: serverTimestamp() });
   S.hostOpen = false;
 }
 
 async function hostReset(skipConfirm = false) {
   if (!skipConfirm && !confirm('Retour au salon d\'attente ? Les tâches et les rôles seront tirés à nouveau au prochain lancement.')) return;
-  await update(roomRef(), { status: 'lobby', endReason: null, tasks: null });
+  await update(roomRef(), { status: 'lobby', endReason: null, tasks: null, power: null });
   await remove(ref(db, `roles/${S.code}`));
 }
 
@@ -1029,16 +1334,17 @@ const THEME = {
   sabotaged: { card: 'sabotaged border-red-300 bg-red-600', badge: 'bg-black/25 text-white', icon: '⚠', label: 'Sabotée' },
 };
 
-function taskCard(t, eff, playing) {
+function taskCard(t, eff, playing, blocked) {
   const th = THEME[eff];
   const id = esc(t.id);
   const inspect = playing && eff === 'completed'
     ? `<button type="button" data-action="inspect" data-id="${id}" class="shrink-0 rounded-lg bg-black/15 px-3 py-2 text-xs font-semibold text-white/85 active:bg-black/30">Vérifier</button>`
     : eff === 'pending' ? ''
       : `<span class="shrink-0 rounded-full ${th.badge} px-2 py-1 text-[10px] font-bold uppercase tracking-wider">${th.label}</span>`;
-  const validate = playing && eff !== 'completed'
-    ? `<button type="button" data-action="validate" data-id="${id}" class="mt-3 w-full rounded-xl py-3.5 text-base font-black transition active:scale-[.98] ${eff === 'sabotaged' ? 'bg-white text-red-700' : 'bg-zinc-100 text-zinc-900'}">Valider la tâche</button>`
-    : '';
+  const validate = !(playing && eff !== 'completed') ? ''
+    : blocked
+      ? `<button type="button" disabled class="mt-3 w-full rounded-xl bg-violet-900/60 py-3.5 text-base font-black text-violet-200">🔒 Tâches bloquées</button>`
+      : `<button type="button" data-action="validate" data-id="${id}" class="mt-3 w-full rounded-xl py-3.5 text-base font-black transition active:scale-[.98] ${eff === 'sabotaged' ? 'bg-white text-red-700' : 'bg-zinc-100 text-zinc-900'}">Valider la tâche</button>`;
   return `
     <article class="rounded-2xl border p-4 ${th.card}">
       <div class="flex items-center gap-3">
@@ -1121,6 +1427,8 @@ function renderHostPanel(tasks) {
 
   const { killers, sheriffs } = roleCounts();
   $('hp-roles').hidden = st === 'playing';
+  $('hp-powers').hidden = st === 'playing';
+  renderPowerSettings();
   $('hp-killers').textContent = killers;
   $('hp-sheriffs').textContent = sheriffs;
   $('hp-roles-summary').textContent = rolesSummary();
@@ -1156,6 +1464,9 @@ function render(tasks, now) {
   // Bandeau
   $('hdr-code').textContent = S.code;
   $('hdr-role').hidden = st === 'lobby';
+  $('btn-power').hidden = st !== 'playing';
+  $('sound-card').hidden = st !== 'lobby';
+  if (st !== 'playing') $('power-sheet').hidden = true;
   $('btn-host').hidden = !host || st === 'lobby';
   $('btn-host').classList.toggle('bg-zinc-100', S.hostOpen);
   $('btn-host').classList.toggle('text-zinc-900', S.hostOpen);
@@ -1189,7 +1500,7 @@ function render(tasks, now) {
   // Tâches
   $('task-list').hidden = st === 'lobby';
   $('task-list').innerHTML = st === 'lobby' ? '' :
-    (tasks.map((t) => taskCard(t, effStatus(t, now), st === 'playing')).join('') ||
+    (tasks.map((t) => taskCard(t, effStatus(t, now), st === 'playing', tasksBlocked(now))).join('') ||
      '<p class="py-10 text-center text-zinc-500">Aucune tâche.</p>');
 
   // Fin de partie
@@ -1229,6 +1540,7 @@ function tick() {
   if (!S.code || !S.room) return;
   const now = serverNow();
   const tasks = taskList();
+  renderPowerEffect(now);
   const sig = tasks.map((t) => t.id + ':' + effStatus(t, now)).join('|');
   if (S.dirty || sig !== S.lastSig) {
     S.dirty = false;
@@ -1236,6 +1548,7 @@ function tick() {
     render(tasks, now);
   }
   updateCountdowns(tasks, now);
+  renderPowerSheet(now);
   if (S.room.status === 'playing') {
     commitSabotages(tasks, now);
     checkVictory(tasks);
@@ -1285,6 +1598,46 @@ function bindUi() {
 
   $('hp-catalog').addEventListener('click', openCatalog);
   $('btn-catalog').addEventListener('click', openCatalog);
+
+  // Son et vibration (préférences locales)
+  const renderSoundCard = () => {
+    const { volume, repeat } = soundPrefs();
+    $('snd-vol').value = volume;
+    $('snd-vol-label').textContent = `${volume} %`;
+    document.querySelectorAll('[data-repeat]').forEach((b) => {
+      const on = Number(b.dataset.repeat) === repeat;
+      b.classList.toggle('bg-zinc-100', on);
+      b.classList.toggle('text-zinc-900', on);
+      b.classList.toggle('bg-zinc-800', !on);
+      b.classList.toggle('text-zinc-300', !on);
+    });
+  };
+  const saveSound = (patch) => { store.set('mp.sound', { ...soundPrefs(), ...patch }); renderSoundCard(); };
+  $('snd-vol').addEventListener('input', (e) => saveSound({ volume: Number(e.target.value) }));
+  document.querySelectorAll('[data-repeat]').forEach((b) =>
+    b.addEventListener('click', () => saveSound({ repeat: Number(b.dataset.repeat) })));
+  $('snd-test').addEventListener('click', () => {
+    // Le toucher vient de débloquer l'audio (pointerdown) : on laisse le contexte démarrer
+    setTimeout(() => powerSound(true), 50);
+    if (!('vibrate' in navigator)) toast('Vibration non disponible sur ce téléphone (normal sur iPhone).', 3500);
+  });
+  renderSoundCard();
+
+  // Pouvoirs
+  buildPowerSettingsUi();
+  $('btn-power').addEventListener('click', () => {
+    S.powerSheetSig = '';
+    $('power-sheet').hidden = false;
+    renderPowerSheet(serverNow());
+  });
+  $('power-sheet').addEventListener('click', (e) => { if (e.target.id === 'power-sheet') $('power-sheet').hidden = true; });
+  document.addEventListener('change', (e) => {
+    const el = e.target.closest('[data-setting]');
+    if (el && S.code) saveSetting(el).catch((err) => toast('Erreur : ' + err.message));
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && e.target.matches?.('[data-setting][type="number"]')) e.target.blur();
+  });
   $('edit-form').addEventListener('submit', (e) => saveEdit(e).catch((err) => toast('Erreur : ' + err.message)));
   $('edit-delete').addEventListener('click', () => deleteEdit().catch((err) => toast('Erreur : ' + err.message)));
   document.querySelectorAll('[data-close]').forEach((b) =>
@@ -1308,6 +1661,7 @@ function bindUi() {
     if (action === 'validate') validateTask(id);
     else if (action === 'inspect') inspectTask(id);
     else if (action === 'info') openInfo(id);
+    else if (action === 'power') usePower(id);
     else if (action === 'cat-new') openEdit(null);
     else if (action === 'cat-edit') openEdit(id);
     else if (action === 'cat-toggle') toggleCatalog(id).catch((err) => toast('Erreur : ' + err.message));

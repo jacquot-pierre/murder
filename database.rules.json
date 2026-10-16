@@ -42,6 +42,21 @@
           ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50"
         },
 
+        "powerSettings": {
+          "startCooldown": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600" },
+          "cooldown": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 3600" },
+          "$power": {
+            "enabled": { ".validate": "newData.isBoolean()" },
+            "duration": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3600" },
+            "maxUses": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "power": {
+          ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && root.child('rooms').child($code).child('status').val() === 'playing' && root.child('roles').child($code).child(auth.uid).child('role').val() === 'TUEUR'"
+        },
+
         "players": {
           "$uid": {
             ".write": "auth != null && auth.uid === $uid && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val()",
@@ -52,7 +67,7 @@
         "tasks": {
           "$taskId": {
             ".write": "auth != null && root.child('config').child('password').exists() && root.child('members').child(auth.uid).val() === root.child('config').child('password').val() && data.exists() && newData.exists() && root.child('rooms').child($code).child('status').val() === 'playing'",
-            ".validate": "newData.hasChildren(['title', 'status']) && (newData.parent().parent().child('hostUid').val() === auth.uid || (newData.child('title').val() === data.child('title').val() && newData.child('location').val() === data.child('location').val() && newData.child('todo').val() === data.child('todo').val() && newData.child('sabotage').val() === data.child('sabotage').val()))",
+            ".validate": "newData.hasChildren(['title', 'status']) && (newData.parent().parent().child('hostUid').val() === auth.uid || (newData.child('title').val() === data.child('title').val() && newData.child('location').val() === data.child('location').val() && newData.child('todo').val() === data.child('todo').val() && newData.child('sabotage').val() === data.child('sabotage').val())) && (newData.child('status').val() !== 'completed' || data.child('status').val() === 'completed' || root.child('rooms').child($code).child('power').child('active').child('type').val() !== 'block' || root.child('rooms').child($code).child('power').child('active').child('until').val() <= now)",
             "status": {
               ".validate": "newData.val() === 'pending' || newData.val() === 'completed' || newData.val() === 'sabotaged'"
             }

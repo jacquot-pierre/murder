@@ -60,6 +60,25 @@ Pour tester en local, servir le dossier en HTTP (par ex. `npx serve .`) plutôt 
 
 Un joueur qui arrive après le lancement joue survivant.
 
+### Pouvoirs des tueurs
+
+Le bouton **⚡** est visible par tout le monde pendant la partie. Un survivant ou un shérif y lit « Tu n'as aucun pouvoir », un tueur y trouve ses pouvoirs.
+
+| Pouvoir | Effet sur **tous** les téléphones (tueur compris) | Par défaut |
+| --- | --- | --- |
+| 🔒 Blocage des tâches | Bandeau violet ; plus personne ne peut valider (vérifié aussi par Firebase) | 30 s, 2× |
+| 🙈 Yeux fermés | Écran plein « FERMEZ LES YEUX ! » + compte à rebours | 10 s, 2× |
+| 🦩 Cloche-pied | Écran plein « À CLOCHE-PIED ! » | 15 s, 2× |
+| 🎤 Chorale | Écran plein « CHANTEZ À TUE-TÊTE ! » | 15 s, 2× |
+
+- **Signaux :** un signal sonore et une vibration marquent le début et la fin de chaque effet, par exemple pour savoir quand rouvrir les yeux. Dans le salon d'attente, la carte **🔊 Son et vibration** permet à chacun de régler le volume et la durée des signaux (court, long ou très long) et de les tester. Ce réglage est propre à chaque téléphone et s'applique aussi à l'alarme de sabotage.
+- **Réglages de l'hôte (salon d'attente) :**
+  - le **cooldown de départ**, compté à partir du lancement (120 s par défaut) ;
+  - le **cooldown entre deux pouvoirs**, compté à partir de la fin de l'effet (60 s par défaut) ;
+  - pour chaque pouvoir : activé ou non, durée, nombre d'utilisations maximum.
+- **Partage et anonymat :** utilisations et cooldowns sont **partagés par l'équipe des tueurs**. Un seul pouvoir peut être actif à la fois, et il est déclenché anonymement.
+- **Sabotage pendant un blocage :** il reste possible.
+
 ### Mécaniques
 
 | Qui | Action | Effet |
@@ -102,6 +121,8 @@ Un joueur qui arrive après le lancement joue survivant.
       "killers": 1,
       "sheriffs": 1,
       "taskCount": 8,
+      "powerSettings": { "startCooldown": 120, "cooldown": 60, "eyes": { "enabled": true, "duration": 10, "maxUses": 2 } },
+      "power": { "uses": { "eyes": 1 }, "lastEnd": 1760550010000, "active": { "type": "eyes", "at": 1760550000000, "until": 1760550010000 } },
       "players": { "uid": { "pseudo": "Alice", "online": true } },
       "tasks": {
         "-Nx…": {
